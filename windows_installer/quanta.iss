@@ -36,6 +36,9 @@ PrivilegesRequired=admin
 ; Specify that this installer can be run on 64-bit systems
 ArchitecturesInstallIn64BitMode=x64
 
+; Tells Windows to reload environment variables so PATH changes take effect immediately
+ChangesEnvironment=yes
+
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
