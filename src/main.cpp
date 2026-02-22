@@ -147,6 +147,25 @@ if (HasError) {
     }
     MainJD.addGenerator(std::move(*ProcessSymsGen));
 
+#ifdef _WIN32
+    // On Windows/MinGW, the C runtime startup calls __main() for global constructors.
+    // Our JIT-compiled code doesn't use global constructors, so we provide a no-op stub
+    // to prevent the JIT from failing to resolve this symbol.
+    {
+        static int noopMainStub = 0; // Dummy so we have an address to use
+        static auto stubFn = []() -> void {};
+        llvm::orc::SymbolMap extraSyms;
+        extraSyms[(*JIT)->getExecutionSession().intern("__main")] = {
+            llvm::orc::ExecutorAddr::fromPtr(+stubFn),
+            llvm::JITSymbolFlags::Exported
+        };
+        if (auto Err = MainJD.define(llvm::orc::absoluteSymbols(std::move(extraSyms)))) {
+            // Non-fatal: log and continue — lookup may still succeed
+            llvm::errs() << "[Warning] Could not define __main stub: " << llvm::toString(std::move(Err)) << "\n";
+        }
+    }
+#endif
+
     // Look up and call the user's main() function
     auto MainSym = (*JIT)->lookup("main");
     if (!MainSym) {
