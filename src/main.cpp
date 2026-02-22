@@ -2,6 +2,9 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 // LLVM Headers
 #include "llvm/IR/IRBuilder.h"
@@ -120,17 +123,32 @@ if (HasError) {
     // Fix: Use RootDir to reliably find quanta_lib.c regardless of where quanta is executed from
     // Also, handle Windows vs Unix executable extensions
 #ifdef _WIN32
-    std::string libPath = RootDir + "src\\quanta_lib.c";
     std::string outFile = "my_quanta_app.exe";
     std::string runCmd = "my_quanta_app.exe";
-    
-    // Fallback logic for Windows in case PATH hasn't updated yet in the current terminal session
-    std::string compileCmd = "clang -g output.o \"" + libPath + "\" -o " + outFile;
+
+    // Resolve quanta.exe's own installation directory so we can find bundled tools
+    // regardless of where the user runs the command from.
+    char exePath[MAX_PATH];
+    GetModuleFileNameA(NULL, exePath, MAX_PATH);
+    std::string exeDir(exePath);
+    size_t lastSep = exeDir.find_last_of("\\/");
+    if (lastSep != std::string::npos) exeDir = exeDir.substr(0, lastSep + 1);
+
+    // Paths to bundled compiler and standard library (installed by the Quanta installer)
+    std::string gccPath  = exeDir + "compiler\\gcc.exe";
+    std::string libPath  = exeDir + "src\\quanta_lib.c";
+
+    // Build compile command; try bundled gcc first, then fall back to system gcc/clang
+    std::string compileCmd = "\"" + gccPath + "\" -g output.o \"" + libPath + "\" -o " + outFile;
     int linkResult = system(compileCmd.c_str());
     if (linkResult != 0) {
-        std::cout << "[INFO] 'clang' not found in PATH. Attempting absolute LLVM path..." << std::endl;
-        // Use Windows 8.3 short path C:\PROGRA~1 to avoid spaces-in-path issues entirely
-        compileCmd = "C:\\PROGRA~1\\LLVM\\bin\\clang.exe -g output.o \"" + libPath + "\" -o " + outFile;
+        std::cout << "[INFO] Bundled gcc not found. Trying system gcc..." << std::endl;
+        compileCmd = "gcc -g output.o \"" + libPath + "\" -o " + outFile;
+        linkResult = system(compileCmd.c_str());
+    }
+    if (linkResult != 0) {
+        std::cout << "[INFO] System gcc not found. Trying system clang..." << std::endl;
+        compileCmd = "clang -g output.o \"" + libPath + "\" -o " + outFile;
         linkResult = system(compileCmd.c_str());
     }
 #else

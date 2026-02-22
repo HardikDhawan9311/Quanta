@@ -36,6 +36,20 @@ jobs:
         cmake -G "MinGW Makefiles" ..
         cmake --build .
 
+    - name: Bundle GCC compiler into installer directory
+      run: |
+        mkdir -p windows_installer/compiler
+        # Copy gcc.exe itself
+        cp /ucrt64/bin/gcc.exe windows_installer/compiler/gcc.exe
+        # Copy all required DLLs that gcc.exe depends on
+        cp /ucrt64/bin/libgcc_s_seh-1.dll     windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libstdc++-6.dll         windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libwinpthread-1.dll     windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libgomp-1.dll           windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/ucrtbase.dll            windows_installer/compiler/ 2>/dev/null || true
+        echo "Bundled compiler files:"
+        ls windows_installer/compiler/
+
     - name: Build Windows Installer
       shell: pwsh
       run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows_installer\quanta.iss'
