@@ -116,20 +116,33 @@ if (HasError) {
     
     // 7. Link and Auto-Run
     std::cout << "[INFO] Compiling object code..." << std::endl;
-    // int linkResult = system("clang -g output.o -o my_quanta_app");
-    int linkResult = system("clang -g output.o ../src/quanta_lib.c -o my_quanta_app");
+    
+    // Fix: Use RootDir to reliably find quanta_lib.c regardless of where quanta is executed from
+    // Also, handle Windows vs Unix executable extensions
+#ifdef _WIN32
+    std::string libPath = RootDir + "src\\quanta_lib.c";
+    std::string outFile = "my_quanta_app.exe";
+    std::string runCmd = "my_quanta_app.exe";
+#else
+    std::string libPath = RootDir + "src/quanta_lib.c";
+    std::string outFile = "my_quanta_app";
+    std::string runCmd = "./my_quanta_app";
+#endif
+
+    std::string compileCmd = "clang -g output.o \"" + libPath + "\" -o " + outFile;
+    int linkResult = system(compileCmd.c_str());
     
     if (linkResult == 0) {
         std::cout << "SUCCESS! Running program..." << std::endl;
         std::cout << "------------------------------------" << std::endl;
 
-        int exitCode = system("./my_quanta_app");
+        int exitCode = system(runCmd.c_str());
         int actualReturn = exitCode >> 8;
         
         std::cout << "\n------------------------------------" << std::endl;
         std::cout << "Program exited with code: " << actualReturn << std::endl;
     } else {
-        std::cerr << "Linking Failed." << std::endl;
+        std::cerr << "Linking Failed. Could not compile the target." << std::endl;
         return 1;
     }
    
