@@ -3,7 +3,7 @@
 
 #define MyAppName "Quanta Language"
 #define MyAppVersion "1.0"
-#define MyAppPublisher "Rohan Kumar Rawat / VoidPanel"
+#define MyAppPublisher "Your Name / Organization"
 #define MyAppExeName "quanta.exe"
 
 [Setup]
@@ -23,12 +23,9 @@ SolidCompression=yes
 ; Enable modern Wizard styling
 WizardStyle=modern
 ; If you have custom images, uncomment and point to them
-WizardImageFile=installer_left_banner.bmp
+; WizardImageFile=installer_left_banner.bmp
 ; WizardSmallImageFile=installer_top_right.bmp
-SetupIconFile=quanta_icon.ico
-
-; Add the EULA (End User License Agreement)
-LicenseFile=..\LICENSE.txt
+; SetupIconFile=quanta_icon.ico
 
 ; Only require admin privileges if installing to Program Files
 PrivilegesRequired=admin
@@ -44,7 +41,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Source: "..\build\quanta.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; You can include the standard library or docs if you have them:
 ; Source: "..\lib\*"; DestDir: "{app}\lib"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\docs\*"; DestDir: "{app}\docs"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Source: "..\docs\*"; DestDir: "{app}\docs"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName} Documentation"; Filename: "{app}\docs\The_Quanta_Programming_Language.md"

@@ -36,8 +36,12 @@ jobs:
         cmake -G "MinGW Makefiles" ..
         cmake --build .
 
-    - name: Upload Windows Executable
+    - name: Build Windows Installer
+      shell: pwsh
+      run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows_installer\quanta.iss'
+
+    - name: Upload Windows Installer
       uses: actions/upload-artifact@v4
       with:
-        name: quanta-windows-exe
-        path: build/quanta.exe
+        name: Quanta-Windows-Installer
+        path: Output\Quanta_Installer_v1.0.exe
