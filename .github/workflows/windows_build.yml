@@ -39,14 +39,34 @@ jobs:
     - name: Bundle GCC compiler into installer directory
       run: |
         mkdir -p windows_installer/compiler
-        # Copy gcc.exe itself
-        cp /ucrt64/bin/gcc.exe windows_installer/compiler/gcc.exe
-        # Copy all required DLLs that gcc.exe depends on
+        
+        # Copy gcc.exe and assembler/linker binaries
+        cp /ucrt64/bin/gcc.exe       windows_installer/compiler/
+        cp /ucrt64/bin/as.exe        windows_installer/compiler/
+        cp /ucrt64/bin/ld.exe        windows_installer/compiler/
+        cp /ucrt64/bin/ld.bfd.exe    windows_installer/compiler/ 2>/dev/null || true
+        
+        # Copy GCC internal programs (cc1, cc1plus, collect2) from lib directory
+        # The wildcard handles any GCC version number (e.g. 14.2.0)
+        cp /ucrt64/lib/gcc/x86_64-w64-mingw32/*/cc1.exe      windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/lib/gcc/x86_64-w64-mingw32/*/cc1plus.exe  windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/lib/gcc/x86_64-w64-mingw32/*/collect2.exe windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/lib/gcc/x86_64-w64-mingw32/*/lto1.exe     windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/lib/gcc/x86_64-w64-mingw32/*/lto-wrapper.exe windows_installer/compiler/ 2>/dev/null || true
+        
+        # Copy all required DLLs
         cp /ucrt64/bin/libgcc_s_seh-1.dll     windows_installer/compiler/ 2>/dev/null || true
         cp /ucrt64/bin/libstdc++-6.dll         windows_installer/compiler/ 2>/dev/null || true
         cp /ucrt64/bin/libwinpthread-1.dll     windows_installer/compiler/ 2>/dev/null || true
         cp /ucrt64/bin/libgomp-1.dll           windows_installer/compiler/ 2>/dev/null || true
-        cp /ucrt64/bin/ucrtbase.dll            windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libmpc-3.dll            windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libmpfr-6.dll           windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libgmp-10.dll           windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libiconv-2.dll          windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libintl-8.dll           windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libzstd.dll             windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libz-1.dll              windows_installer/compiler/ 2>/dev/null || true
+        
         echo "Bundled compiler files:"
         ls windows_installer/compiler/
 

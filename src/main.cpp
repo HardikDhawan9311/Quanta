@@ -141,7 +141,14 @@ if (HasError) {
     GetShortPathNameA(gccPath.c_str(), shortGcc, MAX_PATH);
     GetShortPathNameA(libPath.c_str(), shortLib, MAX_PATH);
 
-    std::string compileCmd = std::string(shortGcc) + " -g output.o " + std::string(shortLib) + " -o " + outFile;
+    // Short path of the compiler dir (no spaces, safe for system() on Windows)
+    char shortExeDir[MAX_PATH];
+    GetShortPathNameA((exeDir + "compiler\\").c_str(), shortExeDir, MAX_PATH);
+    std::string compilerDir(shortExeDir);
+
+    // -B tells GCC to search compilerDir for its internal tools (cc1.exe, collect2.exe, ld.exe etc.)
+    std::string compileCmd = std::string(shortGcc) + " -B " + compilerDir +
+                             " -g output.o " + std::string(shortLib) + " -o " + outFile;
     int linkResult = system(compileCmd.c_str());
     if (linkResult != 0) {
         // Fallback to system gcc
