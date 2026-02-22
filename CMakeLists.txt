@@ -41,6 +41,7 @@ add_executable(quanta
     src/lexer.cpp 
     src/parser.cpp 
     src/codegen.cpp
+    src/quanta_lib.c      # Runtime library compiled into quanta itself for ORC JIT symbol resolution
 )
 
 # 6. Get Library List

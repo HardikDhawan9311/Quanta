@@ -2,9 +2,6 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
-#ifdef _WIN32
-#include <windows.h>
-#endif
 
 // LLVM Headers
 #include "llvm/IR/IRBuilder.h"
@@ -13,6 +10,12 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/ExecutionEngine/Orc/LLJIT.h"
+#include "llvm/ExecutionEngine/Orc/Core.h"
+#include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
+#include "llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h"
+#include "llvm/ExecutionEngine/SectionMemoryManager.h"
 
 #include "../include/quanta.h"
 std::string RootDir = "./";
@@ -109,80 +112,49 @@ if (HasError) {
         return 1;
     }
     if (HasError) {
-        std::cerr << "\n\033[1;31m[Fatal]\033[0m Compilation failed due to type errors. Object file was NOT created." << std::endl;
-        return 1; // STOP HERE! Do not generate object code.
-    }
-
-    // 6. Generate Object File
-    generateObjectCode();
-    // TheModule->print(llvm::errs(), nullptr);
-    
-    // 7. Link and Auto-Run
-    std::cout << "[INFO] Compiling object code..." << std::endl;
-    
-    // Fix: Use RootDir to reliably find quanta_lib.c regardless of where quanta is executed from
-    // Also, handle Windows vs Unix executable extensions
-#ifdef _WIN32
-    std::string outFile = "my_quanta_app.exe";
-    std::string runCmd = "my_quanta_app.exe";
-
-    // Find quanta.exe's own installation directory
-    char exePath[MAX_PATH];
-    GetModuleFileNameA(NULL, exePath, MAX_PATH);
-    std::string exeDir(exePath);
-    size_t lastSep = exeDir.find_last_of("\\/");
-    if (lastSep != std::string::npos) exeDir = exeDir.substr(0, lastSep + 1);
-
-    std::string gccPath = exeDir + "compiler\\gcc.exe";
-    std::string libPath = exeDir + "src\\quanta_lib.c";
-
-    // Convert to short (8.3) path to avoid spaces in directory names like "Program Files"
-    char shortGcc[MAX_PATH], shortLib[MAX_PATH];
-    GetShortPathNameA(gccPath.c_str(), shortGcc, MAX_PATH);
-    GetShortPathNameA(libPath.c_str(), shortLib, MAX_PATH);
-
-    // Short path of the compiler dir (no spaces, safe for system() on Windows)
-    char shortExeDir[MAX_PATH];
-    GetShortPathNameA((exeDir + "compiler\\").c_str(), shortExeDir, MAX_PATH);
-    std::string compilerDir(shortExeDir);
-
-    // -B tells GCC to search compilerDir for its internal tools (cc1.exe, collect2.exe, ld.exe etc.)
-    std::string compileCmd = std::string(shortGcc) + " -B " + compilerDir +
-                             " -g output.o " + std::string(shortLib) + " -o " + outFile;
-    int linkResult = system(compileCmd.c_str());
-    if (linkResult != 0) {
-        // Fallback to system gcc
-        std::cout << "[INFO] Bundled gcc failed. Trying system gcc..." << std::endl;
-        compileCmd = "gcc -g output.o " + std::string(shortLib) + " -o " + outFile;
-        linkResult = system(compileCmd.c_str());
-    }
-    if (linkResult != 0) {
-        // Fallback to system clang
-        std::cout << "[INFO] System gcc not found. Trying system clang..." << std::endl;
-        compileCmd = "clang -g output.o " + std::string(shortLib) + " -o " + outFile;
-        linkResult = system(compileCmd.c_str());
-    }
-#else
-    std::string libPath = RootDir + "src/quanta_lib.c";
-    std::string outFile = "my_quanta_app";
-    std::string runCmd = "./my_quanta_app";
-    std::string compileCmd = "clang -g output.o \"" + libPath + "\" -o " + outFile;
-    int linkResult = system(compileCmd.c_str());
-#endif
-    
-    if (linkResult == 0) {
-        std::cout << "SUCCESS! Running program..." << std::endl;
-        std::cout << "------------------------------------" << std::endl;
-
-        int exitCode = system(runCmd.c_str());
-        int actualReturn = exitCode >> 8;
-        
-        std::cout << "\n------------------------------------" << std::endl;
-        std::cout << "Program exited with code: " << actualReturn << std::endl;
-    } else {
-        std::cerr << "Linking Failed. Could not compile the target." << std::endl;
+        std::cerr << "\n\033[1;31m[Fatal]\033[0m Compilation failed due to type errors." << std::endl;
         return 1;
     }
-   
-    return 0;
+
+    // 6. JIT-compile and run using LLVM ORC JIT
+    // No external compiler needed — everything runs in-process!
+    llvm::InitializeNativeTarget();
+    llvm::InitializeNativeTargetAsmPrinter();
+    llvm::InitializeNativeTargetAsmParser();
+
+    auto JIT = llvm::orc::LLJITBuilder().create();
+    if (!JIT) {
+        llvm::errs() << "[Fatal] Failed to create JIT: " << llvm::toString(JIT.takeError()) << "\n";
+        return 1;
+    }
+
+    // Add the generated IR module to the JIT
+    auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), std::move(TheContext));
+    if (auto Err = (*JIT)->addIRModule(std::move(TSM))) {
+        llvm::errs() << "[Fatal] Failed to add module: " << llvm::toString(std::move(Err)) << "\n";
+        return 1;
+    }
+
+    // Register symbols from the current process (quanta.exe itself) so the JIT
+    // can find quanta_lib functions (quanta_upper, quanta_lower, printf, etc.)
+    auto &MainJD = (*JIT)->getMainJITDylib();
+    auto ProcessSymsGen = llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(
+        (*JIT)->getDataLayout().getGlobalPrefix());
+    if (!ProcessSymsGen) {
+        llvm::errs() << "[Fatal] Failed to create process symbol generator: "
+                     << llvm::toString(ProcessSymsGen.takeError()) << "\n";
+        return 1;
+    }
+    MainJD.addGenerator(std::move(*ProcessSymsGen));
+
+    // Look up and call the user's main() function
+    auto MainSym = (*JIT)->lookup("main");
+    if (!MainSym) {
+        llvm::errs() << "[Fatal] Could not find 'main': " << llvm::toString(MainSym.takeError()) << "\n";
+        return 1;
+    }
+
+    auto *MainFn = MainSym->toPtr<int(*)()>();
+    int result = MainFn();
+    return result;
 }
