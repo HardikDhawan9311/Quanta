@@ -98,9 +98,9 @@ Let's start coding.
 
 ## Chapter 7: String Manipulation & Standard Library
 * **7.1 Concatenation**: Combining strings with the `+` operator.
-* **7.2 Inspection Functions**: `len()`, `isupper()`, `islower()`, `isalpha()`, `isdigit()`, `isalnum()`, `isspace()`.
-* **7.3 Modification Functions**: `upper()`, `lower()`, `reverse()`, `strip()`, `lstrip()`, `rstrip()`, `capitalize()`, `title()`.
-* **7.4 Search & Replace**: `find()`, `count()`, `startswith()`, `endswith()`, `replace()`.
+* **7.2 Inspection Methods**: `.len()`, `.isupper()`, `.islower()`, `.isalpha()`, `.isdigit()`, `.isalnum()`, `.isspace()`.
+* **7.3 Modification Methods**: `.upper()`, `.lower()`, `.reverse()`, `.strip()`, `.lstrip()`, `.rstrip()`, `.capitalize()`, `.title()`.
+* **7.4 Search & Replace Methods**: `.find()`, `.count()`, `.startswith()`, `.endswith()`, `.replace()`.
 
 ## Chapter 8: Functions and Memory
 * **8.1 Defining Functions**: Syntax, parameters, and return types.
@@ -114,7 +114,12 @@ Let's start coding.
 * **9.1 Writing Embedded-Safe Code**: Best practices for sticking to stack-only structures when memory constraints are tight.
 * **9.2 Debugging Common Errors**: Understanding compiler warnings (e.g., illegal String-to-Int casts).
 * **9.3 Bridging C and Quanta**: Understanding how the Quanta LLVM backend interfaces.
-* **9.4 Future Proofing**: Preparing for upcoming Quanta features (Arrays, Structs, etc.).
+* **9.4 Future Proofing**: Preparing for upcoming Quanta features (Structs, Enums, etc.).
+
+## Chapter 10: Arrays and Lists
+* **10.1 Fixed Arrays**: Strict, stack-allocated arrays for predictable memory (`int[5] arr = [1, 2, 3];`).
+* **10.2 Dynamic Lists**: Flexible, heap-allocated collections (`int[] list = [1, 2, 3];`).
+* **10.3 Indexing and Assignment**: Accessing and mutating elements (`arr[0] = 100;`).
 # Chapter 1: Introduction to Quanta
 
 Welcome to your first steps with **Quanta**. This chapter will guide you through understanding what makes Quanta unique, how to set up your environment, and how to write your very first running script.
@@ -1021,66 +1026,66 @@ High-Level & Embedded
 
 Sometimes you just need to know facts about the text you have. These functions evaluate your strings and return information (often Booleans).
 
-### Checking Length `len()`
+### Checking Length `.len()`
 Returns the exact number of characters currently inside the string. Note that for static strings (`string[N]`), this returns the *current text length*, not the maximum memory size!
 ```quanta
 text = "Quanta"
 string[20] stat = "Hi"
 
-print(len(text))  @ Outputs 6
-print(len(stat))  @ Outputs 2 (Even though it holds up to 20 bytes)
+print(text.len())  @ Outputs 6
+print(stat.len())  @ Outputs 2 (Even though it holds up to 20 bytes)
 ```
 
 ### Truth Checks
-Quanta includes a suite of boolean checks to analyze the contents of your text. These all return `1` (True) or `0` (False):
+Quanta includes a suite of boolean checks to analyze the contents of your text. These all return `1` (True) or `0` (False) and are called as object methods:
 
-* `isupper("HELLO")` -> Checks if all letters are capitalized.
-* `islower("hello")` -> Checks if all letters are lowercase.
-* `isalpha("abc")` -> Checks if the string only contains alphabetical letters.
-* `isdigit("123")` -> Checks if the string only contains numbers.
-* `isalnum("abc12")` -> Checks if the string contains only letters and numbers (no punctuation).
-* `isspace("   ")` -> Checks if the string is entirely made of spaces.
+* `"HELLO".isupper()` -> Checks if all letters are capitalized.
+* `"hello".islower()` -> Checks if all letters are lowercase.
+* `"abc".isalpha()` -> Checks if the string only contains alphabetical letters.
+* `"123".isdigit()` -> Checks if the string only contains numbers.
+* `"abc12".isalnum()` -> Checks if the string contains only letters and numbers (no punctuation).
+* `"   ".isspace()` -> Checks if the string is entirely made of spaces.
 
 ```quanta
 user_input = "12345"
 
-if (isdigit(user_input)) {
+if (user_input.isdigit()) {
     print("Valid number provided.")
 }
 ```
 
 ---
 
-## 7.3 Modification Functions
+## 7.3 Modification Methods
 
-These functions take your original text, modify it, and return a *new* string containing the altered text. 
+These methods take your original text, modify it, and return a *new* string containing the altered text. 
 
 > [!NOTE]
-> These functions do not change your original variable! They create new data. If you want to overwrite your old variable, you must reassign it like this: `text = upper(text)`
+> These methods do not change your original variable! They create new data. If you want to overwrite your old variable, you must reassign it like this: `text = text.upper()`
 
-* `upper(text)` -> Converts all letters to UPPERCASE.
-* `lower(text)` -> Converts all letters to lowercase.
-* `reverse(text)` -> Flips the text backwards.
-* `capitalize(text)` -> Only capitalizes the very first letter of the string.
-* `title(text)` -> Capitalizes the first letter of *every* word in the string.
+* `text.upper()` -> Converts all letters to UPPERCASE.
+* `text.lower()` -> Converts all letters to lowercase.
+* `text.reverse()` -> Flips the text backwards.
+* `text.capitalize()` -> Only capitalizes the very first letter of the string.
+* `text.title()` -> Capitalizes the first letter of *every* word in the string.
 
 ```quanta
 msg = "hello quanta"
 
-print(upper(msg))    @ Outputs: HELLO QUANTA
-print(title(msg))    @ Outputs: Hello Quanta
-print(reverse(msg))  @ Outputs: atnauq olleh
+print(msg.upper())    @ Outputs: HELLO QUANTA
+print(msg.title())    @ Outputs: Hello Quanta
+print(msg.reverse())  @ Outputs: atnauq olleh
 ```
 
 ### Removing Whitespace
 Data coming from users or sensors often has messy whitespace at the start or end. Quanta provides tools to clean it:
-* `strip(text)` -> Removes spaces from *both* ends.
-* `lstrip(text)` -> Removes spaces from the *left* side only.
-* `rstrip(text)` -> Removes spaces from the *right* side only.
+* `text.strip()` -> Removes spaces from *both* ends.
+* `text.lstrip()` -> Removes spaces from the *left* side only.
+* `text.rstrip()` -> Removes spaces from the *right* side only.
 
 ```quanta
 messy = "   Sensor Data   "
-clean = strip(messy)
+clean = messy.strip()
 
 print(clean) @ Outputs: Sensor Data
 ```
@@ -1092,33 +1097,33 @@ print(clean) @ Outputs: Sensor Data
 Finding specific text within a larger body of text is a foundational programming requirement. Quanta provides tools to scan and replace items.
 
 ### Checking Boundaries
-* `startswith(text, "query")` -> Returns `1` if the text begins with the query.
-* `endswith(text, "query")` -> Returns `1` if the text finishes with the query.
+* `text.startswith("query")` -> Returns `1` if the text begins with the query.
+* `text.endswith("query")` -> Returns `1` if the text finishes with the query.
 
 ```quanta
 filename = "report.qnt"
 
-if (endswith(filename, ".qnt")) {
+if (filename.endswith(".qnt")) {
     print("This is a Quanta file!")
 }
 ```
 
 ### Deep Searching
-* `find(text, "query")` -> Searches the text and returns the index location (the character position) where it found the query.
-* `count(text, "query")` -> Searches the text and tells you how many times the query appeared.
+* `text.find("query")` -> Searches the text and returns the index location (the character position) where it found the query.
+* `text.count("query")` -> Searches the text and tells you how many times the query appeared.
 
 ```quanta
 data = "error: voltage drop. error: overheat."
 
-print(count(data, "error")) @ Outputs: 2
+print(data.count("error")) @ Outputs: 2
 ```
 
 ### Replacing Text
-* `replace(text, "old", "new")` -> Scans the text, finds every instance of "old", and replaces it with "new".
+* `text.replace("old", "new")` -> Scans the text, finds every instance of "old", and replaces it with "new".
 
 ```quanta
 raw = "I hate bugs."
-fixed = replace(raw, "hate", "love")
+fixed = raw.replace("hate", "love")
 
 print(fixed) @ Outputs: I love bugs.
 ```
@@ -1325,9 +1330,8 @@ Quanta is a rapidly evolving language with a clear ethos: **Developer ease witho
 
 As the language grows, several major data structures are on the horizon. Writing clean, modular code today ensures you can easily adopt these in the future:
 
-1. **Arrays and Lists:** While Quanta expertly slices and organizes strings, true data arrays (like `[1, 2, 3]`) are a natural next step for managing datasets.
-2. **Structs and Objects:** The ability to bundle multiple variables under a single custom data type (like a `Player` struct possessing `int health` and `string[10] name`).
-3. **Hardware Integrations:** More native functions exposing raw bit-wise shifting and direct memory registry access for ultra-low-level embedded work.
+1. **Structs and Objects:** The ability to bundle multiple variables under a single custom data type (like a `Player` struct possessing `int health` and `string[10] name`).
+2. **Hardware Integrations:** More native functions exposing raw bit-wise shifting and direct memory registry access for ultra-low-level embedded work.
 
 ## Final Note
 
@@ -1336,3 +1340,76 @@ Programming languages are merely tools to help humans instruct machines. Some to
 You now have everything you need to start writing real Quanta applications. Happy coding!
 
 — *Rohan Kumar Rawat, Creator of Quanta*
+
+---
+
+# Chapter 10: Arrays and Lists
+
+Now that we have covered how to store single pieces of data like numbers and text, we need a way to store collections of data. Quanta introduces **Arrays** and **Lists** as powerful structures for managing multiple values safely and efficiently.
+
+Just like with strings, Quanta provides two primary ways to store collections of data depending on your memory requirements: strict **Fixed Arrays** and flexible **Dynamic Lists**.
+
+---
+
+## 10.1 Fixed Arrays
+
+A **Fixed Array** is allocated entirely on the stack memory. This means it is incredibly fast and memory-safe, but its size is permanently locked the moment it is created. Fixed arrays are the best choice for high-speed computation and embedded systems where memory size must be guaranteed at compile time.
+
+To create a fixed array, you simply attach `[N]` after your data type, where `N` is the maximum number of items the array can hold.
+
+```quanta
+@ Create an array that holds exactly 5 integers
+int[5] scores = [100, 95, 80, 85, 90]
+
+@ Create a fixed array of strings
+string[3] names = ["Rohan", "Alice", "Bob"]
+```
+
+Because fixed arrays are strict, you cannot push new items into them beyond their capacity.
+
+---
+
+## 10.2 Dynamic Lists
+
+When building high-level applications, you often don't know how many items you need to store. Real-world data grows and shrinks. This is where **Dynamic Lists** come in.
+
+A Dynamic List allocates memory on the heap and can grow as needed. Quanta handles all the memory logistics behind the scenes, just like it does for dynamic strings.
+
+To create a dynamic list, you simply use empty brackets `[]` after the data type, or let Quanta infer it.
+
+```quanta
+@ Explicitly creating a dynamic list of integers
+int[] dynamic_scores = [10, 20, 30]
+
+@ Quanta can automatically infer dynamic lists too
+auto_list = [1, 2, 3]
+```
+
+Dynamic lists are perfect for managing data that scales over time.
+
+---
+
+## 10.3 Indexing and Assignment
+
+Whether you use a Fixed Array or a Dynamic List, you access and change the data inside them the exact same way—using bracket notation `[index]`.
+
+Quanta uses **zero-based indexing**, meaning the first item is at position `0`.
+
+```quanta
+data = [10, 20, 30]
+
+@ Access the first item
+print(data[0])  @ Outputs: 10
+
+@ Modify the second item
+data[1] = 99
+print(data[1])  @ Outputs: 99
+```
+
+Quanta provides a seamless, safe experience for modifying both single characters in text and elements in data collections.
+
+---
+
+## Summary
+
+Arrays and Lists open up a whole new world of data processing in Quanta. You can safely iterate over collections using `loop`, update values precisely, and confidently organize massive amounts of information without worrying about manual memory management.
