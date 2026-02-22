@@ -129,8 +129,8 @@ if (HasError) {
     int linkResult = system(compileCmd.c_str());
     if (linkResult != 0) {
         std::cout << "[INFO] 'clang' not found in PATH. Attempting absolute LLVM path..." << std::endl;
-        // cmd.exe requires the outer quotes when the exe path has spaces: cmd /C "\"path\" args"
-        compileCmd = "cmd /C \"\\\"C:\\Program Files\\LLVM\\bin\\clang.exe\\\" -g output.o \\\"" + libPath + "\\\" -o " + outFile + "\"";
+        // Use Windows 8.3 short path C:\PROGRA~1 to avoid spaces-in-path issues entirely
+        compileCmd = "C:\\PROGRA~1\\LLVM\\bin\\clang.exe -g output.o \"" + libPath + "\" -o " + outFile;
         linkResult = system(compileCmd.c_str());
     }
 #else
