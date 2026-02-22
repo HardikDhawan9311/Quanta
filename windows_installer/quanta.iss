@@ -67,7 +67,7 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
 [Run]
 ; Automatically download and install LLVM/Clang if it is not already installed on the system
 Filename: "powershell.exe"; \
-    Parameters: "-ExecutionPolicy Bypass -Command ""if (!(Get-Command clang -ErrorAction SilentlyContinue) -and !(Test-Path 'C:\Program Files\LLVM\bin\clang.exe')) { Write-Host 'Downloading LLVM/Clang (C Compiler) required for Quanta. This may take a few minutes...'; Invoke-WebRequest -Uri 'https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/LLVM-18.1.8-win64.exe' -OutFile '$env:TEMP\llvm_installer.exe'; Write-Host 'Installing LLVM...'; Start-Process -Wait -FilePath '$env:TEMP\llvm_installer.exe' -ArgumentList '/S' -NoNewWindow }"""; \
+    Parameters: "-ExecutionPolicy Bypass -Command ""if (!(Get-Command clang -ErrorAction SilentlyContinue) -and !(Test-Path 'C:\Program Files\LLVM\bin\clang.exe')) {{ Write-Host 'Downloading LLVM/Clang (C Compiler) required for Quanta. This may take a few minutes...'; Invoke-WebRequest -Uri 'https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/LLVM-18.1.8-win64.exe' -OutFile '$env:TEMP\llvm_installer.exe'; Write-Host 'Installing LLVM...'; Start-Process -Wait -FilePath '$env:TEMP\llvm_installer.exe' -ArgumentList '/S' -NoNewWindow }"""; \
     StatusMsg: "Checking and installing Clang/LLVM compiler if missing..."; \
     Flags: waituntilterminated
 
