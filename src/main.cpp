@@ -126,36 +126,39 @@ if (HasError) {
     std::string outFile = "my_quanta_app.exe";
     std::string runCmd = "my_quanta_app.exe";
 
-    // Resolve quanta.exe's own installation directory so we can find bundled tools
-    // regardless of where the user runs the command from.
+    // Find quanta.exe's own installation directory
     char exePath[MAX_PATH];
     GetModuleFileNameA(NULL, exePath, MAX_PATH);
     std::string exeDir(exePath);
     size_t lastSep = exeDir.find_last_of("\\/");
     if (lastSep != std::string::npos) exeDir = exeDir.substr(0, lastSep + 1);
 
-    // Paths to bundled compiler and standard library (installed by the Quanta installer)
-    std::string gccPath  = exeDir + "compiler\\gcc.exe";
-    std::string libPath  = exeDir + "src\\quanta_lib.c";
+    std::string gccPath = exeDir + "compiler\\gcc.exe";
+    std::string libPath = exeDir + "src\\quanta_lib.c";
 
-    // Build compile command; try bundled gcc first, then fall back to system gcc/clang
-    std::string compileCmd = "\"" + gccPath + "\" -g output.o \"" + libPath + "\" -o " + outFile;
+    // Convert to short (8.3) path to avoid spaces in directory names like "Program Files"
+    char shortGcc[MAX_PATH], shortLib[MAX_PATH];
+    GetShortPathNameA(gccPath.c_str(), shortGcc, MAX_PATH);
+    GetShortPathNameA(libPath.c_str(), shortLib, MAX_PATH);
+
+    std::string compileCmd = std::string(shortGcc) + " -g output.o " + std::string(shortLib) + " -o " + outFile;
     int linkResult = system(compileCmd.c_str());
     if (linkResult != 0) {
-        std::cout << "[INFO] Bundled gcc not found. Trying system gcc..." << std::endl;
-        compileCmd = "gcc -g output.o \"" + libPath + "\" -o " + outFile;
+        // Fallback to system gcc
+        std::cout << "[INFO] Bundled gcc failed. Trying system gcc..." << std::endl;
+        compileCmd = "gcc -g output.o " + std::string(shortLib) + " -o " + outFile;
         linkResult = system(compileCmd.c_str());
     }
     if (linkResult != 0) {
+        // Fallback to system clang
         std::cout << "[INFO] System gcc not found. Trying system clang..." << std::endl;
-        compileCmd = "clang -g output.o \"" + libPath + "\" -o " + outFile;
+        compileCmd = "clang -g output.o " + std::string(shortLib) + " -o " + outFile;
         linkResult = system(compileCmd.c_str());
     }
 #else
     std::string libPath = RootDir + "src/quanta_lib.c";
     std::string outFile = "my_quanta_app";
     std::string runCmd = "./my_quanta_app";
-    
     std::string compileCmd = "clang -g output.o \"" + libPath + "\" -o " + outFile;
     int linkResult = system(compileCmd.c_str());
 #endif
