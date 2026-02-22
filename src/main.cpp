@@ -123,14 +123,23 @@ if (HasError) {
     std::string libPath = RootDir + "src\\quanta_lib.c";
     std::string outFile = "my_quanta_app.exe";
     std::string runCmd = "my_quanta_app.exe";
+    
+    // Fallback logic for Windows in case PATH hasn't updated yet in the current terminal session
+    std::string compileCmd = "clang -g output.o \"" + libPath + "\" -o " + outFile;
+    int linkResult = system(compileCmd.c_str());
+    if (linkResult != 0) {
+        std::cout << "[INFO] 'clang' not found in PATH. Attempting absolute LLVM path..." << std::endl;
+        compileCmd = "\"C:\\Program Files\\LLVM\\bin\\clang.exe\" -g output.o \"" + libPath + "\" -o " + outFile;
+        linkResult = system(compileCmd.c_str());
+    }
 #else
     std::string libPath = RootDir + "src/quanta_lib.c";
     std::string outFile = "my_quanta_app";
     std::string runCmd = "./my_quanta_app";
-#endif
-
+    
     std::string compileCmd = "clang -g output.o \"" + libPath + "\" -o " + outFile;
     int linkResult = system(compileCmd.c_str());
+#endif
     
     if (linkResult == 0) {
         std::cout << "SUCCESS! Running program..." << std::endl;
