@@ -1107,9 +1107,11 @@ void generateObjectCode() {
     auto CPU = "generic";
     auto Features = "";
     llvm::TargetOptions opt;
-    // LLVM ≥ 17: createTargetMachine and setTargetTriple expect StringRef, not llvm::Triple
-    auto TargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, opt, llvm::Reloc::PIC_);
-    TheModule->setTargetTriple(TargetTriple);
+    // Explicitly construct llvm::Triple — compatible with LLVM 16/17/18/19/20/21
+    // on Windows, macOS, and Linux (Triple constructor is explicit, cannot implicit-convert std::string)
+    llvm::Triple TT(TargetTriple);
+    auto TargetMachine = Target->createTargetMachine(TT, CPU, Features, opt, llvm::Reloc::PIC_);
+    TheModule->setTargetTriple(TT);
     TheModule->setDataLayout(TargetMachine->createDataLayout());
     std::error_code EC;
     llvm::raw_fd_ostream dest("output.o", EC, llvm::sys::fs::OF_None);

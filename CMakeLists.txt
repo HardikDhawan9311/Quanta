@@ -69,11 +69,22 @@ add_executable(quanta
 if(DEFINED USE_FIND_PACKAGE AND USE_FIND_PACKAGE)
     target_link_libraries(quanta PRIVATE ${LLVM_LIBS})
 else()
-    execute_process(
-        COMMAND ${LLVM_CONFIG_EXE} --libs --system-libs --link-static
-        OUTPUT_VARIABLE LLVM_LIBS_OUTPUT
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+    if(UNIX AND NOT APPLE)
+        # Linux: apt llvm-dev only ships shared libs, so DON'T use --link-static
+        execute_process(
+            COMMAND ${LLVM_CONFIG_EXE} --libs --system-libs
+            OUTPUT_VARIABLE LLVM_LIBS_OUTPUT
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    else()
+        # Windows / macOS: full LLVM install has static libs
+        execute_process(
+            COMMAND ${LLVM_CONFIG_EXE} --libs --system-libs --link-static
+            OUTPUT_VARIABLE LLVM_LIBS_OUTPUT
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    endif()
+
     string(REPLACE "\n" " " LLVM_LIBS_CLEAN "${LLVM_LIBS_OUTPUT}")
     string(REPLACE " " ";" LLVM_LIBS_LIST "${LLVM_LIBS_CLEAN}")
 
