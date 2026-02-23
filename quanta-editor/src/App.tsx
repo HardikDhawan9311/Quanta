@@ -34,14 +34,7 @@ const IconFile = () => (
     </svg>
 );
 
-const DEFAULT_CODE = `// Welcome to Quanta Studio!
-// Write your Quanta code here, then press ▶ Run Code
-
-fn main() {
-  print("Hello from Quanta!")
-}
-
-main()
+const DEFAULT_CODE = `print("Welcome to Quanta")
 `;
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -62,25 +55,22 @@ export default function App() {
         if (!monaco) return;
         monaco.languages.register({ id: 'quanta' });
         monaco.languages.setMonarchTokensProvider('quanta', {
-            keywords: ['fn', 'let', 'if', 'else', 'return', 'while', 'for', 'in',
+            keywords: ['fn', 'let', 'if', 'elif', 'else', 'return', 'while', 'for', 'loop', 'in',
                 'class', 'struct', 'import', 'print', 'true', 'false', 'null',
-                'and', 'or', 'not', 'break', 'continue', 'new', 'self'],
+                'and', 'or', 'not', 'break', 'continue', 'new', 'self', 'var', 'void'],
             tokenizer: {
                 root: [
-                    [/\b(fn|let|if|else|return|while|for|in|class|struct|import|print|true|false|null|and|or|not|break|continue|new|self)\b/, 'keyword'],
+                    [/@.*$/, 'comment'],             // @ single-line comment
+                    [/'''/, 'comment', '@tripleS'],  // ''' block comment
+                    [/"""/, 'comment', '@tripleD'],  // """ block comment
+                    [/\b(fn|let|if|elif|else|return|while|for|loop|in|class|struct|import|print|true|false|null|and|or|not|break|continue|new|self|var|void)\b/, 'keyword'],
                     [/"([^"\\]|\\.)*"/, 'string'],
-                    [/'([^'\\]|\\.)*'/, 'string'],
                     [/\b\d+(\.\d+)?\b/, 'number'],
-                    [/\/\/.*$/, 'comment'],
-                    [/\/\*/, 'comment', '@comment'],
                     [/[{}()\[\]]/, '@brackets'],
-                    [/[=><!~?:&|+\-*\/\^%@]+/, 'operator'],
+                    [/[=><!\~?:&|+\-*\/\^%]+/, 'operator'],
                 ],
-                comment: [
-                    [/[^\/*]+/, 'comment'],
-                    [/\*\//, 'comment', '@pop'],
-                    [/[\/*]/, 'comment']
-                ]
+                tripleS: [[/'''/, 'comment', '@pop'], [/./, 'comment']],
+                tripleD: [[/"""/, 'comment', '@pop'], [/./, 'comment']],
             }
         });
         monaco.editor.defineTheme('quantaTheme', {
