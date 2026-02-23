@@ -118,7 +118,7 @@ ipcMain.handle('exec:quanta', async (_, filePath: string) => {
             compilerPath = `"${path.resolve(localCompiler)}"`;
         }
 
-        const command = `${compilerPath} run "${filePath}"`;
+        const command = `${compilerPath} "${filePath}"`;
         exec(command, (error, stdout, stderr) => {
             resolve({
                 error: error ? error.message : null,

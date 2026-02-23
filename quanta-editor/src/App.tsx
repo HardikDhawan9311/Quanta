@@ -333,7 +333,7 @@ export default function App() {
                     <div className="terminal-body">
                         {output ? (
                             <>
-                                <span className="terminal-prompt">{'$ quanta run '}</span>
+                                <span className="terminal-prompt">{'$ quanta '}</span>
                                 <span style={{ color: '#555' }}>{fileName}</span>
                                 {'\n\n'}
                                 <span className={isError ? 'terminal-error' : 'terminal-output'}>
