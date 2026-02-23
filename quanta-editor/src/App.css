@@ -1,41 +1,29 @@
-/* ═══════════════════════════════════════════════════════════
-   Quanta Studio — Global Stylesheet
-   Replaces Tailwind with hand-crafted premium IDE styles
-   ═══════════════════════════════════════════════════════════ */
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* ─── Design Tokens ──────────────────────────────────────── */
 :root {
-  --bg-base: #0d0d0d;
-  --bg-sidebar: #111111;
-  --bg-toolbar: #181818;
-  --bg-editor: #1a1a1a;
+  --bg-base: #111111;
+  --bg-bar: #161616;
+  --bg-toolbar: #1a1a1a;
+  --bg-editor: #181818;
   --bg-terminal: #0f0f0f;
-  --bg-tab: #252526;
-  --bg-hover: #2a2a2a;
-  --bg-active: #37373d;
-
-  --border: #2a2a2a;
-  --border-light: #333333;
-
-  --text-primary: #e8e8e8;
-  --text-secondary: #a0a0a0;
-  --text-muted: #555555;
-  --text-accent: #c678dd;
-
-  --accent-green: #3fb950;
-  --accent-green-h: #2da142;
-  --accent-blue: #4fc1ff;
-  --accent-purple: #c678dd;
-  --accent-orange: #d19a66;
-
+  --bg-tab: #202020;
+  --bg-hover: #252525;
+  --bg-active: #2a2a2a;
+  --border: #262626;
+  --border-lt: #2e2e2e;
+  --text-1: #e8e8e8;
+  --text-2: #909090;
+  --text-3: #555555;
+  --accent: #c678dd;
+  --accent-dim: #7c4d98;
+  --green: #3fb950;
+  --green-h: #339d43;
+  --red: #ff7b72;
   --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
-
-  --radius: 6px;
-  --transition: 150ms ease;
-
+  --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  --radius: 5px;
+  --t: 120ms ease;
   color-scheme: dark;
 }
 
@@ -55,17 +43,16 @@ body,
   width: 100%;
   overflow: hidden;
   background: var(--bg-base);
-  color: var(--text-primary);
+  color: var(--text-1);
   font-family: var(--font-ui);
   font-size: 13px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
-/* ─── Scrollbar ──────────────────────────────────────────── */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
@@ -81,7 +68,6 @@ body,
   background: #444;
 }
 
-/* ─── Electron drag region ───────────────────────────────── */
 .drag-region {
   -webkit-app-region: drag;
 }
@@ -97,57 +83,73 @@ body,
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  background: var(--bg-base);
 }
 
 /* ─── Title Bar ──────────────────────────────────────────── */
 .titlebar {
-  height: 38px;
-  min-height: 38px;
   display: flex;
   align-items: center;
-  padding: 0 16px;
+  justify-content: space-between;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 14px;
   background: var(--bg-base);
   border-bottom: 1px solid var(--border);
   user-select: none;
   flex-shrink: 0;
 }
 
-.titlebar-logo {
+.titlebar-left {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-1);
 }
 
-.titlebar-logo .logo-dot {
+.logo-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--accent-purple);
-  box-shadow: 0 0 6px var(--accent-purple);
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-dim);
   flex-shrink: 0;
 }
 
+.logo-name {
+  letter-spacing: 0.01em;
+}
+
 .titlebar-file {
-  margin-left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-2);
   padding: 2px 10px;
   border-radius: var(--radius);
-  background: var(--bg-tab);
-  color: var(--text-primary);
-  font-size: 12px;
-  border: 1px solid var(--border-light);
-  letter-spacing: 0.02em;
+  background: var(--bg-toolbar);
+  border: 1px solid var(--border-lt);
 }
+
+.dirty-dot {
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.titlebar-right {
+  width: 80px;
+}
+
+/* balance on macOS traffic lights side */
 
 /* ─── Toolbar ────────────────────────────────────────────── */
 .toolbar {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 12px;
+  padding: 5px 10px;
   background: var(--bg-toolbar);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
@@ -161,98 +163,98 @@ body,
 
 .toolbar-divider {
   width: 1px;
-  height: 20px;
-  background: var(--border-light);
+  height: 18px;
+  background: var(--border-lt);
   margin: 0 8px;
+  flex-shrink: 0;
 }
 
 .btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 12px;
-  border: none;
+  padding: 5px 11px;
+  border: 1px solid transparent;
   border-radius: var(--radius);
   font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: background var(--transition), color var(--transition);
   outline: none;
   white-space: nowrap;
+  transition: background var(--t), color var(--t), border-color var(--t);
+}
+
+.btn svg {
+  flex-shrink: 0;
 }
 
 .btn-ghost {
   background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid transparent;
+  color: var(--text-2);
 }
 
 .btn-ghost:hover {
   background: var(--bg-hover);
-  color: var(--text-primary);
-  border-color: var(--border-light);
+  color: var(--text-1);
+  border-color: var(--border-lt);
 }
 
 .btn-run {
-  background: var(--accent-green);
+  background: var(--green);
   color: #000;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-weight: 700;
+  gap: 7px;
   padding: 5px 16px;
-  box-shadow: 0 1px 8px rgba(63, 185, 80, 0.25);
+  box-shadow: 0 1px 10px rgba(63, 185, 80, 0.2);
 }
 
 .btn-run:hover:not(:disabled) {
-  background: var(--accent-green-h);
-  box-shadow: 0 2px 12px rgba(63, 185, 80, 0.35);
+  background: var(--green-h);
+  box-shadow: 0 2px 16px rgba(63, 185, 80, 0.35);
 }
 
 .btn-run:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .btn-run.running {
-  background: #2d6a4f;
-  animation: pulse-run 1.2s ease-in-out infinite;
+  background: #216e39;
+  animation: run-pulse 1.4s ease-in-out infinite;
 }
 
-@keyframes pulse-run {
+@keyframes run-pulse {
 
   0%,
   100% {
-    box-shadow: 0 1px 8px rgba(63, 185, 80, 0.2);
+    box-shadow: 0 0 6px rgba(63, 185, 80, .2);
   }
 
   50% {
-    box-shadow: 0 1px 20px rgba(63, 185, 80, 0.5);
+    box-shadow: 0 0 20px rgba(63, 185, 80, .5);
   }
 }
 
-/* ─── Main Content Area ──────────────────────────────────── */
+/* ─── Content ────────────────────────────────────────────── */
 .content {
   display: flex;
   flex-direction: column;
   flex: 1;
   overflow: hidden;
+  min-height: 0;
 }
 
-/* ─── Editor Tab Bar ─────────────────────────────────────── */
+/* ─── Tab Bar ────────────────────────────────────────────── */
 .tab-bar {
   display: flex;
-  align-items: center;
-  background: var(--bg-sidebar);
+  align-items: stretch;
+  background: var(--bg-bar);
   border-bottom: 1px solid var(--border);
-  height: 34px;
-  min-height: 34px;
-  padding: 0 0 0 8px;
+  height: 33px;
+  min-height: 33px;
   flex-shrink: 0;
-  overflow-x: auto;
-}
-
-.tab-bar::-webkit-scrollbar {
-  height: 0;
+  overflow: hidden;
 }
 
 .tab {
@@ -260,36 +262,49 @@ body,
   align-items: center;
   gap: 6px;
   padding: 0 14px;
-  height: 100%;
-  font-size: 12.5px;
-  color: var(--text-secondary);
+  font-size: 12px;
+  color: var(--text-2);
   border-right: 1px solid var(--border);
-  cursor: pointer;
+  cursor: default;
   white-space: nowrap;
   user-select: none;
   position: relative;
-  transition: color var(--transition);
 }
 
 .tab.active {
   background: var(--bg-editor);
-  color: var(--text-primary);
-  border-top: 1px solid var(--accent-purple);
-}
-
-.tab.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: var(--bg-editor);
+  color: var(--text-1);
+  border-top: 1px solid var(--accent);
 }
 
 .tab-icon {
-  color: var(--accent-purple);
-  flex-shrink: 0;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+}
+
+.tab-bar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  padding-right: 8px;
+}
+
+.tab-new-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-3);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: color var(--t), background var(--t);
+}
+
+.tab-new-btn:hover {
+  color: var(--text-1);
+  background: var(--bg-hover);
 }
 
 /* ─── Editor Pane ────────────────────────────────────────── */
@@ -301,45 +316,78 @@ body,
   min-height: 0;
 }
 
+.editor-loading {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.editor-loading-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--border-lt);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ─── Terminal Panel ─────────────────────────────────────── */
 .terminal-panel {
-  height: 220px;
-  min-height: 220px;
+  height: 210px;
+  min-height: 210px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   background: var(--bg-terminal);
-  border-top: 1px solid var(--border);
-  flex-shrink: 0;
+  border-top: 2px solid var(--border);
 }
 
 .terminal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  height: 30px;
   padding: 0 14px;
-  height: 32px;
+  flex-shrink: 0;
   background: var(--bg-toolbar);
   border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
 }
 
 .terminal-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-2);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
 }
 
-.terminal-dot {
+.term-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent-green);
-  animation: blink 2s ease-in-out infinite;
+  background: var(--green);
+  flex-shrink: 0;
+  animation: blink 2.5s ease-in-out infinite;
+}
+
+.term-dot.compiling {
+  background: #f0a500;
+  animation: blink 0.6s ease-in-out infinite;
 }
 
 @keyframes blink {
@@ -350,7 +398,7 @@ body,
   }
 
   50% {
-    opacity: 0.3;
+    opacity: .25;
   }
 }
 
@@ -358,45 +406,49 @@ body,
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--text-muted);
+  font-family: var(--font-ui);
+  color: var(--text-3);
   font-size: 11px;
   padding: 2px 8px;
-  border-radius: 4px;
-  font-family: var(--font-ui);
-  transition: color var(--transition), background var(--transition);
+  border-radius: 3px;
+  transition: color var(--t), background var(--t);
 }
 
 .terminal-clear:hover {
-  color: var(--text-secondary);
+  color: var(--text-2);
   background: var(--bg-hover);
 }
 
 .terminal-body {
   flex: 1;
   padding: 10px 16px;
+  overflow-y: auto;
   font-family: var(--font-mono);
   font-size: 12.5px;
-  line-height: 1.7;
-  overflow-y: auto;
+  line-height: 1.75;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.terminal-prompt {
-  color: var(--accent-green);
-  font-weight: 500;
+.term-prompt {
+  color: var(--green);
+  font-weight: 600;
 }
 
-.terminal-output {
+.term-fname {
+  color: var(--text-3);
+}
+
+.term-out {
   color: #cfd8dc;
 }
 
-.terminal-error {
-  color: #ff7b72;
+.term-error {
+  color: var(--red);
 }
 
-.terminal-empty {
-  color: var(--text-muted);
+.term-empty {
+  color: var(--text-3);
   font-style: italic;
 }
 
@@ -404,15 +456,15 @@ body,
 .statusbar {
   height: 22px;
   min-height: 22px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 12px;
-  background: var(--accent-purple);
-  color: rgba(255, 255, 255, 0.9);
+  padding: 0 14px;
+  background: var(--accent-dim);
+  color: rgba(255, 255, 255, .9);
   font-size: 11px;
   font-weight: 500;
-  flex-shrink: 0;
   user-select: none;
 }
 
@@ -420,23 +472,15 @@ body,
 .statusbar-right {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 
-.statusbar-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  opacity: 0.85;
-  cursor: default;
+.statusbar-left span,
+.statusbar-right span {
+  opacity: .85;
 }
 
-.statusbar-item:hover {
+.statusbar-left span:hover,
+.statusbar-right span:hover {
   opacity: 1;
-}
-
-/* ─── SVG Icons (inline) ─────────────────────────────────── */
-.icon {
-  display: inline-block;
-  vertical-align: middle;
 }
