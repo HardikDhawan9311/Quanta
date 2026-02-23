@@ -175,5 +175,7 @@ if (HasError) {
 
     auto *MainFn = MainSym->toPtr<int(*)()>();
     int result = MainFn();
+    fflush(stdout);  // flush buffered output (important when piped through Electron)
+    fflush(stderr);
     return result;
 }

@@ -124,7 +124,7 @@ ipcMain.handle('exec:quanta', async (_, filePath: string) => {
             ...process.env,
             PATH: ['/opt/homebrew/bin', '/opt/homebrew/sbin', '/usr/local/bin', '/usr/bin', '/bin', process.env.PATH || ''].join(':')
         };
-        exec(command, { env }, (error, stdout, stderr) => {
+        exec(command, { env, cwd: path.dirname(filePath), timeout: 15000 }, (error, stdout, stderr) => {
             resolve({ error: error ? error.message : null, stdout, stderr });
         });
     });
