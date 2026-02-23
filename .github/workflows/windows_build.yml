@@ -1,4 +1,4 @@
-name: Windows Build
+name: Build All Platforms
 
 on:
   push:
@@ -6,17 +6,17 @@ on:
   workflow_dispatch:
 
 jobs:
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 1: Windows – builds quanta.exe, bundles GCC, runs Inno Setup + Electron
+  # ─────────────────────────────────────────────────────────────────────────────
   build-windows:
     runs-on: windows-latest
-    
-    defaults:
-      run:
-        shell: msys2 {0}
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Setup MSYS2
+    - name: Setup MSYS2 (for compiling Quanta C++ with GCC)
       uses: msys2/setup-msys2@v2
       with:
         msystem: UCRT64
@@ -29,66 +29,145 @@ jobs:
           mingw-w64-ucrt-x86_64-zstd
           mingw-w64-ucrt-x86_64-zlib
 
-    - name: Setup Node.js
+    - name: Setup Node.js (for building Quanta Studio Electron app)
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-        
-    - name: Build Quanta Editor (Electron)
+
+    - name: Build Quanta Studio (Electron IDE)
       shell: pwsh
       run: |
         cd quanta-editor
-        npm install
+        npm install --legacy-peer-deps
         npm run build
-        npm run package:dir
-        
-    - name: Build Quanta
+        npm run package:win
+
+    - name: Build Quanta CLI compiler (quanta.exe)
+      shell: msys2 {0}
       run: |
         mkdir -p build
         cd build
         cmake -G "MinGW Makefiles" ..
         cmake --build .
 
-    - name: Bundle GCC compiler into installer directory
+    - name: Bundle GCC into installer directory
+      shell: msys2 {0}
       run: |
         mkdir -p windows_installer/compiler
-        
-        # Copy gcc.exe and assembler/linker binaries
-        cp /ucrt64/bin/gcc.exe       windows_installer/compiler/
-        cp /ucrt64/bin/as.exe        windows_installer/compiler/
-        cp /ucrt64/bin/ld.exe        windows_installer/compiler/
-        cp /ucrt64/bin/ld.bfd.exe    windows_installer/compiler/ 2>/dev/null || true
-        
-        # Copy GCC internal programs (cc1, cc1plus, collect2) from lib directory
-        # The wildcard handles any GCC version number (e.g. 14.2.0)
-        cp /ucrt64/lib/gcc/x86_64-w64-mingw32/*/cc1.exe      windows_installer/compiler/ 2>/dev/null || true
-        cp /ucrt64/lib/gcc/x86_64-w64-mingw32/*/cc1plus.exe  windows_installer/compiler/ 2>/dev/null || true
-        cp /ucrt64/lib/gcc/x86_64-w64-mingw32/*/collect2.exe windows_installer/compiler/ 2>/dev/null || true
-        cp /ucrt64/lib/gcc/x86_64-w64-mingw32/*/lto1.exe     windows_installer/compiler/ 2>/dev/null || true
-        cp /ucrt64/lib/gcc/x86_64-w64-mingw32/*/lto-wrapper.exe windows_installer/compiler/ 2>/dev/null || true
-        
-        # Copy all required DLLs
-        cp /ucrt64/bin/libgcc_s_seh-1.dll     windows_installer/compiler/ 2>/dev/null || true
-        cp /ucrt64/bin/libstdc++-6.dll         windows_installer/compiler/ 2>/dev/null || true
-        cp /ucrt64/bin/libwinpthread-1.dll     windows_installer/compiler/ 2>/dev/null || true
-        cp /ucrt64/bin/libgomp-1.dll           windows_installer/compiler/ 2>/dev/null || true
-        cp /ucrt64/bin/libmpc-3.dll            windows_installer/compiler/ 2>/dev/null || true
-        cp /ucrt64/bin/libmpfr-6.dll           windows_installer/compiler/ 2>/dev/null || true
-        cp /ucrt64/bin/libgmp-10.dll           windows_installer/compiler/ 2>/dev/null || true
-        cp /ucrt64/bin/libiconv-2.dll          windows_installer/compiler/ 2>/dev/null || true
-        cp /ucrt64/bin/libintl-8.dll           windows_installer/compiler/ 2>/dev/null || true
-        cp /ucrt64/bin/libzstd.dll             windows_installer/compiler/ 2>/dev/null || true
-        cp /ucrt64/bin/libz-1.dll              windows_installer/compiler/ 2>/dev/null || true
-        
+
+        cp /ucrt64/bin/gcc.exe                                        windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/as.exe                                         windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/ld.exe                                         windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/ld.bfd.exe                                     windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/lib/gcc/x86_64-w64-mingw32/*/cc1.exe              windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/lib/gcc/x86_64-w64-mingw32/*/cc1plus.exe          windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/lib/gcc/x86_64-w64-mingw32/*/collect2.exe         windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/lib/gcc/x86_64-w64-mingw32/*/lto1.exe             windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/lib/gcc/x86_64-w64-mingw32/*/lto-wrapper.exe      windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libgcc_s_seh-1.dll                            windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libstdc++-6.dll                               windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libwinpthread-1.dll                           windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libgomp-1.dll                                 windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libmpc-3.dll                                  windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libmpfr-6.dll                                 windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libgmp-10.dll                                 windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libiconv-2.dll                                windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libintl-8.dll                                 windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libzstd.dll                                   windows_installer/compiler/ 2>/dev/null || true
+        cp /ucrt64/bin/libz-1.dll                                    windows_installer/compiler/ 2>/dev/null || true
+
         echo "Bundled compiler files:"
         ls windows_installer/compiler/
 
-    - name: Build Windows Installer
+    - name: Build Windows Installer (Inno Setup)
       shell: pwsh
       run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows_installer\quanta.iss'
 
-    - name: Upload Windows Installer
+    - name: Upload Windows Installer artifact
       uses: actions/upload-artifact@v4
       with:
         name: Quanta-Windows-Installer
         path: windows_installer/Output/Quanta_Installer_v1.0.exe
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 2: macOS – builds quanta CLI + Quanta Studio.app + DMG
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-mac:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Clang + CMake (pre-installed on macOS runner)
+      run: |
+        brew install cmake || true
+
+    - name: Build Quanta CLI compiler (macOS)
+      run: |
+        mkdir -p build
+        cd build
+        cmake ..
+        cmake --build .
+
+    - name: Build Quanta Studio (macOS DMG)
+      run: |
+        cd quanta-editor
+        npm install --legacy-peer-deps
+        npm run build
+        npm run package:mac
+
+    - name: Upload macOS artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Quanta-macOS
+        path: |
+          build/quanta
+          quanta-editor/release/*.dmg
+          quanta-editor/release/*.zip
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 3: Linux – builds quanta CLI + Quanta Studio AppImage + .deb
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake clang libfuse2
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Build Quanta CLI compiler (Linux)
+      run: |
+        mkdir -p build
+        cd build
+        cmake ..
+        cmake --build .
+
+    - name: Build Quanta Studio (Linux AppImage + .deb)
+      run: |
+        cd quanta-editor
+        npm install --legacy-peer-deps
+        npm run build
+        npm run package:linux
+
+    - name: Upload Linux artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Quanta-Linux
+        path: |
+          build/quanta
+          quanta-editor/release/*.AppImage
+          quanta-editor/release/*.deb

@@ -8,44 +8,41 @@ const isDev = process.env.NODE_ENV === 'development';
 
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 1200,
-        height: 800,
-        titleBarStyle: 'hidden',
-        titleBarOverlay: {
-            color: '#1e1e1e',
-            symbolColor: '#ffffff',
-            height: 35
-        },
+        width: 1400,
+        height: 900,
+        minWidth: 900,
+        minHeight: 600,
+        // FIX: show: true so the window is ALWAYS visible on launch
+        // Previously 'show: false' was hiding it when ready-to-show never fired
+        show: true,
+        backgroundColor: '#1e1e1e',
+        // NOTE: titleBarOverlay is Windows-only and caused crashes on some setups
+        // Removed icon path (no icon file exists yet in public/)
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js')
         },
-        show: false,
-        backgroundColor: '#1e1e1e',
-        icon: path.join(__dirname, '../public/icon.png')
     });
 
     if (isDev) {
         mainWindow.loadURL('http://localhost:5173');
         mainWindow.webContents.openDevTools();
     } else {
-        const primaryPath = path.join(__dirname, '../dist/index.html');
-        const fallbackPath = path.join(__dirname, 'dist/index.html');
-        const asarFallbackPath = path.join(__dirname, '../../dist/index.html');
-
-        if (fs.existsSync(primaryPath)) {
-            mainWindow.loadFile(primaryPath);
-        } else if (fs.existsSync(fallbackPath)) {
-            mainWindow.loadFile(fallbackPath);
-        } else {
-            mainWindow.loadFile(asarFallbackPath);
-        }
+        // When packaged by electron-builder, __dirname is inside the asar:
+        //   app.asar/dist-electron/main.js
+        // So ../dist/index.html correctly points to app.asar/dist/index.html
+        const indexHtml = path.join(__dirname, '../dist/index.html');
+        mainWindow.loadFile(indexHtml).catch((err) => {
+            // If loading fails, log the error and show a dialog so the user
+            // knows something went wrong instead of seeing a blank screen
+            console.error('Failed to load index.html:', err);
+            dialog.showErrorBox(
+                'Quanta Studio - Load Error',
+                `Failed to load the editor UI.\nPath tried: ${indexHtml}\nError: ${err.message}`
+            );
+        });
     }
-
-    mainWindow.once('ready-to-show', () => {
-        mainWindow?.show();
-    });
 
     mainWindow.on('closed', () => {
         mainWindow = null;
@@ -56,6 +53,7 @@ app.whenReady().then(() => {
     createWindow();
 
     app.on('activate', () => {
+        // macOS: re-create window when dock icon is clicked
         if (BrowserWindow.getAllWindows().length === 0) {
             createWindow();
         }
@@ -63,20 +61,22 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+    // macOS: keep app running until CMD+Q
     if (process.platform !== 'darwin') {
         app.quit();
     }
 });
 
-// --- IPC Handlers for File System ---
-
+// ─── IPC: Open File ──────────────────────────────────────────────────────────
 ipcMain.handle('dialog:openFile', async () => {
     if (!mainWindow) return null;
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
         properties: ['openFile'],
-        filters: [{ name: 'Quanta Files', extensions: ['qunta', 'quanta'] }, { name: 'All Files', extensions: ['*'] }]
+        filters: [
+            { name: 'Quanta Files', extensions: ['qunta', 'quanta', 'qt'] },
+            { name: 'All Files', extensions: ['*'] }
+        ]
     });
-
     if (canceled || filePaths.length === 0) return null;
 
     const filePath = filePaths[0];
@@ -84,6 +84,7 @@ ipcMain.handle('dialog:openFile', async () => {
     return { filePath, content, fileName: path.basename(filePath) };
 });
 
+// ─── IPC: Save File ───────────────────────────────────────────────────────────
 ipcMain.handle('fs:saveFile', async (_, filePath: string, content: string) => {
     fs.writeFileSync(filePath, content, 'utf-8');
     return true;
@@ -92,32 +93,32 @@ ipcMain.handle('fs:saveFile', async (_, filePath: string, content: string) => {
 ipcMain.handle('dialog:saveFileAs', async (_, content: string) => {
     if (!mainWindow) return null;
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
-        filters: [{ name: 'Quanta Files', extensions: ['qunta', 'quanta'] }]
+        filters: [
+            { name: 'Quanta Files', extensions: ['qunta', 'quanta', 'qt'] }
+        ]
     });
-
     if (canceled || !filePath) return null;
 
     fs.writeFileSync(filePath, content, 'utf-8');
     return { filePath, fileName: path.basename(filePath) };
 });
 
-// --- IPC Handler for Executing Quanta Compiler ---
-
+// ─── IPC: Run Quanta Compiler ─────────────────────────────────────────────────
 ipcMain.handle('exec:quanta', async (_, filePath: string) => {
     return new Promise((resolve) => {
-        // In production, the compiler might be alongside the editor executable
-        // Let's assume quanta.exe is in the system PATH or alongside the app
+        // In the Windows installer, quanta.exe is placed one level above the
+        // "Quanta Studio" folder, i.e. at C:\Quanta\quanta.exe
+        // process.execPath  = C:\Quanta\Quanta Studio\Quanta Studio.exe
+        const studioDir = path.dirname(process.execPath);             // C:\Quanta\Quanta Studio
+        const localCompiler = path.join(studioDir, '..', 'quanta.exe'); // C:\Quanta\quanta.exe
 
-        let compilerPath = 'quanta';
+        let compilerPath = 'quanta'; // fall back to PATH
 
-        // In development or if deployed alongside
-        const possibleLocalPath = path.join(process.resourcesPath, '..', 'quanta.exe');
-        if (fs.existsSync(possibleLocalPath)) {
-            compilerPath = `"${possibleLocalPath}"`;
+        if (fs.existsSync(localCompiler)) {
+            compilerPath = `"${path.resolve(localCompiler)}"`;
         }
 
         const command = `${compilerPath} run "${filePath}"`;
-
         exec(command, (error, stdout, stderr) => {
             resolve({
                 error: error ? error.message : null,
