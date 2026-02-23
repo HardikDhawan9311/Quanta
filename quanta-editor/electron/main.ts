@@ -106,25 +106,26 @@ ipcMain.handle('dialog:saveFileAs', async (_, content: string) => {
 // ─── IPC: Run Quanta Compiler ─────────────────────────────────────────────────
 ipcMain.handle('exec:quanta', async (_, filePath: string) => {
     return new Promise((resolve) => {
-        // In the Windows installer, quanta.exe is placed one level above the
-        // "Quanta Studio" folder, i.e. at C:\Quanta\quanta.exe
-        // process.execPath  = C:\Quanta\Quanta Studio\Quanta Studio.exe
-        const studioDir = path.dirname(process.execPath);             // C:\Quanta\Quanta Studio
-        const localCompiler = path.join(studioDir, '..', 'quanta.exe'); // C:\Quanta\quanta.exe
-
-        let compilerPath = 'quanta'; // fall back to PATH
-
-        if (fs.existsSync(localCompiler)) {
-            compilerPath = `"${path.resolve(localCompiler)}"`;
+        const home = process.env.HOME || '';
+        const candidates = [
+            path.join(path.dirname(process.execPath), '..', 'quanta.exe'),
+            path.join(path.dirname(process.execPath), '..', 'quanta'),
+            '/opt/homebrew/bin/quanta',
+            '/usr/local/bin/quanta',
+            path.join(home, 'Desktop', 'Quanta', 'build', 'quanta'),
+            path.join(home, 'Quanta', 'build', 'quanta'),
+        ];
+        let compilerPath = 'quanta';
+        for (const c of candidates) {
+            try { if (fs.existsSync(c)) { compilerPath = `"${path.resolve(c)}"`; break; } } catch { }
         }
-
         const command = `${compilerPath} "${filePath}"`;
-        exec(command, (error, stdout, stderr) => {
-            resolve({
-                error: error ? error.message : null,
-                stdout,
-                stderr
-            });
+        const env = {
+            ...process.env,
+            PATH: ['/opt/homebrew/bin', '/opt/homebrew/sbin', '/usr/local/bin', '/usr/bin', '/bin', process.env.PATH || ''].join(':')
+        };
+        exec(command, { env }, (error, stdout, stderr) => {
+            resolve({ error: error ? error.message : null, stdout, stderr });
         });
     });
 });

@@ -53,6 +53,7 @@ export default function App() {
     const [currentFile, setCurrentFile] = useState<string | null>(null);
     const [fileName, setFileName] = useState<string>('Untitled.qnt');
     const [isDirty, setIsDirty] = useState<boolean>(false);
+    const [editorKey, setEditorKey] = useState<number>(0);
 
     const monaco = useMonaco();
 
@@ -117,6 +118,7 @@ export default function App() {
         setFileName('Untitled.qnt');
         setIsDirty(false);
         setOutput('');
+        setEditorKey(k => k + 1); // force Monaco to remount with fresh content
     };
 
     // ── Open File ──────────────────────────────────────────────────────────────
@@ -252,6 +254,7 @@ export default function App() {
                 {/* Editor */}
                 <div className="editor-pane">
                     <Editor
+                        key={editorKey}
                         height="100%"
                         language="quanta"
                         theme="quantaTheme"
