@@ -121,14 +121,14 @@ export default function App() {
                     // Keywords
                     ...['if', 'elif', 'else', 'return', 'loop', 'in',
                         'import', 'print', 'true', 'false', 'null',
-                        'var', 'void', 'bool', 'int', 'float', 'string', 'char', 'all'].map(k => ({
+                        'var', 'void', 'bool', 'int', 'float', 'string', 'char', 'all', 'push', 'pop', 'len'].map(k => ({
                             label: k,
                             kind: monaco.languages.CompletionItemKind.Keyword,
                             insertText: k,
                             range
                         })),
-                    // Built-in functions
-                    ...['print', 'len', 'upper', 'lower', 'reverse', 'strip', 'lstrip', 'rstrip', 'capitalize', 'title', 'isalpha', 'isdigit', 'isspace', 'isalnum', 'find', 'count', 'startswith', 'endswith', 'replace'].map(fn => ({
+                    // Built-in functions & methods
+                    ...['print', 'len', 'upper', 'lower', 'reverse', 'strip', 'lstrip', 'rstrip', 'capitalize', 'title', 'isalpha', 'isdigit', 'isspace', 'isalnum', 'find', 'count', 'startswith', 'endswith', 'replace', 'push', 'pop'].map(fn => ({
                         label: fn,
                         kind: monaco.languages.CompletionItemKind.Function,
                         insertText: `${fn}()`,
@@ -426,34 +426,54 @@ export default function App() {
                 <div className="help-overlay" onClick={() => setShowHelp(false)}>
                     <div className="help-modal" onClick={e => e.stopPropagation()}>
                         <div className="help-header">
-                            <h2>Quanta Syntax Guide</h2>
+                            <div>
+                                <h2>Quanta Syntax Reference</h2>
+                                <p className="help-subtitle">Everything you need to write Quanta code</p>
+                            </div>
                             <button className="help-close" onClick={() => setShowHelp(false)}>✕</button>
                         </div>
                         <div className="help-content">
-                            <div className="help-section">
-                                <h3>Comments</h3>
-                                <pre><code>@ Single line comment{'\n'}''' Multi-line{'\n'}    comment '''</code></pre>
-                            </div>
+
                             <div className="help-section">
                                 <h3>Variables & Types</h3>
-                                <pre><code>@ Implicit{'\n'}x = 100{'\n'}name = "Quanta"{'\n'}{'\n'}@ Explicit{'\n'}int age = 10{'\n'}float pi = 3.14{'\n'}var y = 50</code></pre>
+                                <pre><code>@ Implicit types{'\n'}x = 100{'\n'}name = "Quanta"{'\n'}isValid = true{'\n'}{'\n'}@ Explicit types{'\n'}int age = 10{'\n'}float pi = 3.14{'\n'}string msg = "Hello"</code></pre>
                             </div>
+
                             <div className="help-section">
-                                <h3>Functions</h3>
-                                <pre><code>int add(a, b) {'{\n'}  return a + b;\n{'}'}{'\n\n'}string greet(name) {'{\n'}  print("Hello " + name);\n{'}'}</code></pre>
+                                <h3>Arrays & Lists</h3>
+                                <pre><code>@ Fixed Array (Size 3){'\n'}int[3] arr = [10, 20, 30];{'\n'}arr[1] = 99;{'\n'}{'\n'}@ Dynamic List (Resizable){'\n'}int[] list = [5, 10];{'\n'}list.push(15);{'\n'}int last = list.pop();{'\n'}print(list.len());</code></pre>
                             </div>
+
+                            <div className="help-section">
+                                <h3>Functions & Defaults</h3>
+                                <pre><code>@ Standard function{'\n'}int add(a, b) {'{\n'}  return a + b;{'\n'}{'}'}{'\n\n'}@ Default arguments{'\n'}int area(w=10, h=20) {'{\n'}  return w * h;{'\n'}{'}'}</code></pre>
+                            </div>
+
                             <div className="help-section">
                                 <h3>Control Flow</h3>
                                 <pre><code>if (x &gt; 5) {'{\n'}  print("Large");{'\n'}{'} '}elif (x == 5) {'{\n'}  print("Five");{'\n'}{'} '}else {'{\n'}  print("Small");{'\n'}{'}'}</code></pre>
                             </div>
+
                             <div className="help-section">
                                 <h3>Loops</h3>
                                 <pre><code>int i = 0;{'\n'}loop (i &lt; 5) {'{\n'}  print(i);{'\n'}  i++;{'\n'}{'}'}</code></pre>
                             </div>
+
                             <div className="help-section">
-                                <h3>Built-in Methods</h3>
-                                <pre><code>print(len("test"))         @ 4{'\n'}print(upper("abc"))        @ ABC{'\n'}print(replace("cat", "c", "b")) @ bat</code></pre>
+                                <h3>String Methods</h3>
+                                <pre><code>string s = " Quanta Language "{'\n'}{'\n'}len(s)        @ length{'\n'}upper(s)      @ " QUANTA ..."{'\n'}lower(s)      @ " quanta ..."{'\n'}strip(s)      @ removes spaces{'\n'}replace(s, "a", "A"){'\n'}reverse(s){'\n'}find(s, "Lan") @ returns index</code></pre>
                             </div>
+
+                            <div className="help-section">
+                                <h3>String Validation</h3>
+                                <pre><code>string val = "Hello"{'\n'}{'\n'}isalpha(val)   @ true{'\n'}isdigit(val)   @ false{'\n'}isspace(val)   @ false{'\n'}isalnum(val)   @ true{'\n'}startswith(val, "He") @ true{'\n'}endswith(val, "lo")   @ true</code></pre>
+                            </div>
+
+                            <div className="help-section">
+                                <h3>Comments</h3>
+                                <pre><code>@ Single line comment{'\n\n'}'''{'\n'}Multi-line block comment{'\n'}for longer explanations{'\n'}'''</code></pre>
+                            </div>
+
                         </div>
                     </div>
                 </div>
