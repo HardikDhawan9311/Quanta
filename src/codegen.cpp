@@ -1107,8 +1107,9 @@ void generateObjectCode() {
     auto CPU = "generic";
     auto Features = "";
     llvm::TargetOptions opt;
-    auto TargetMachine = Target->createTargetMachine(llvm::Triple(TargetTriple), CPU, Features, opt, llvm::Reloc::PIC_);
-    TheModule->setTargetTriple(llvm::Triple(TargetTriple));
+    // LLVM ≥ 17: createTargetMachine and setTargetTriple expect StringRef, not llvm::Triple
+    auto TargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, opt, llvm::Reloc::PIC_);
+    TheModule->setTargetTriple(TargetTriple);
     TheModule->setDataLayout(TargetMachine->createDataLayout());
     std::error_code EC;
     llvm::raw_fd_ostream dest("output.o", EC, llvm::sys::fs::OF_None);

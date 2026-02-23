@@ -18,10 +18,11 @@ if(DEFINED LLVM_DIR)
     include_directories(${LLVM_INCLUDE_DIRS})
     add_definitions(${LLVM_DEFINITIONS})
     llvm_map_components_to_libnames(LLVM_LIBS
-        core support irreader executionengine mcjit
-        x86asmparser x86codegen x86desc x86info
-        aarch64asmparser aarch64codegen aarch64desc aarch64info
-        analysis bitwriter passes
+        core support irreader
+        executionengine mcjit orcjit lljit runtimedyld object native
+        x86asmparser x86codegen x86desc x86info x86disassembler
+        aarch64asmparser aarch64codegen aarch64desc aarch64info aarch64disassembler
+        analysis bitwriter passes mcjit
     )
     set(USE_FIND_PACKAGE TRUE)
 else()
