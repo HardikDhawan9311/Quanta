@@ -49,9 +49,13 @@ Source: "..\docs\*"; DestDir: "{app}\docs"; Flags: ignoreversion recursesubdirs 
 Source: ".\compiler\*"; DestDir: "{app}\compiler"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Bundle the Quanta standard library source so it can be linked
 Source: "..\src\quanta_lib.c"; DestDir: "{app}\src"; Flags: ignoreversion
+; Bundle Quanta Studio
+Source: "..\quanta-editor\dist-electron\win-arm64-unpacked\*"; DestDir: "{app}\Quanta Studio"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName} Documentation"; Filename: "{app}\docs\The_Quanta_Programming_Language.md"
+Name: "{group}\Quanta Studio"; Filename: "{app}\Quanta Studio\Quanta Studio.exe"
+Name: "{commondesktop}\Quanta Studio"; Filename: "{app}\Quanta Studio\Quanta Studio.exe"
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 
 [Registry]

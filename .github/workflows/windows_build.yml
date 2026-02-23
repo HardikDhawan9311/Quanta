@@ -29,6 +29,18 @@ jobs:
           mingw-w64-ucrt-x86_64-zstd
           mingw-w64-ucrt-x86_64-zlib
 
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Build Quanta Editor (Electron)
+      run: |
+        cd quanta-editor
+        npm install
+        npm run build
+        npm run package:dir
+        
     - name: Build Quanta
       run: |
         mkdir -p build
