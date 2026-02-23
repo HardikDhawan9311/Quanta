@@ -30,7 +30,17 @@ function createWindow() {
         mainWindow.loadURL('http://localhost:5173');
         mainWindow.webContents.openDevTools();
     } else {
-        mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+        const primaryPath = path.join(__dirname, '../dist/index.html');
+        const fallbackPath = path.join(__dirname, 'dist/index.html');
+        const asarFallbackPath = path.join(__dirname, '../../dist/index.html');
+
+        if (fs.existsSync(primaryPath)) {
+            mainWindow.loadFile(primaryPath);
+        } else if (fs.existsSync(fallbackPath)) {
+            mainWindow.loadFile(fallbackPath);
+        } else {
+            mainWindow.loadFile(asarFallbackPath);
+        }
     }
 
     mainWindow.once('ready-to-show', () => {
