@@ -1092,10 +1092,11 @@ llvm::Value *BlockAST::codegen() {
 
 
 void generateObjectCode() {
-    llvm::InitializeAllTargetInfos();
-    llvm::InitializeAllTargets();
-    llvm::InitializeAllTargetMCs();
-    llvm::InitializeAllAsmPrinters();
+    // Only initialize the host machine's target — we never cross-compile.
+    // InitializeAll* would require linking every LLVM backend (AMDGPU, ARM, RISCV, ...)
+    llvm::InitializeNativeTarget();
+    llvm::InitializeNativeTargetAsmPrinter();
+    llvm::InitializeNativeTargetAsmParser();
     std::string TargetTriple = llvm::sys::getDefaultTargetTriple();
     // std::string TargetTriple = "arm64-apple-macosx15.0.0";
     // TheModule->setTargetTriple(TargetTriple);
