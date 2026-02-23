@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import './App.css';
 
@@ -34,6 +34,13 @@ const IconFile = () => (
     </svg>
 );
 
+const IconHelp = () => (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16Z" />
+        <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.113.266-.25.09-.656.54-1.134 1.342-1.134.686 0 1.314.343 1.314 1.168 0 .635-.374.927-.965 1.371-.673.489-1.206 1.06-1.168 1.987l.003.217a.25.25 0 0 0 .25.246h.811a.25.25 0 0 0 .25-.25v-.105c0-.718.273-.927 1.01-1.486.609-.463 1.244-.977 1.244-2.056 0-1.511-1.276-2.241-2.673-2.241-1.267 0-2.655.59-2.75 2.286Zm1.557 5.733c0 .57.4.923.962.923.56 0 .935-.353.935-.923 0-.585-.375-.924-.935-.924-.56 0-.962.339-.962.924Z" />
+    </svg>
+);
+
 const DEFAULT_CODE = `fn main() {
   print("Welcome to Quanta")
 }
@@ -51,6 +58,10 @@ export default function App() {
     const [fileName, setFileName] = useState<string>('Untitled.qnt');
     const [isDirty, setIsDirty] = useState<boolean>(false);
     const [editorKey, setEditorKey] = useState<number>(0);
+
+    const [terminalHeight, setTerminalHeight] = useState<number>(210);
+    const [showHelp, setShowHelp] = useState<boolean>(false);
+    const isDragging = useRef<boolean>(false);
 
     const monaco = useMonaco();
 
@@ -97,6 +108,56 @@ export default function App() {
                 'editorIndentGuide.background1': '#282828',
                 'editorWidget.background': '#1e1e1e',
                 'editorSuggestWidget.background': '#252526',
+            }
+        });
+
+        // ── Autocomplete / IntelliSense ───────────────────────────────────────
+        monaco.languages.registerCompletionItemProvider('quanta', {
+            provideCompletionItems: (model, position) => {
+                const word = model.getWordUntilPosition(position);
+                const range = {
+                    startLineNumber: position.lineNumber,
+                    endLineNumber: position.lineNumber,
+                    startColumn: word.startColumn,
+                    endColumn: word.endColumn,
+                };
+
+                const suggestions = [
+                    // Keywords
+                    ...['fn', 'let', 'if', 'elif', 'else', 'return', 'while', 'for', 'loop', 'in',
+                        'class', 'struct', 'import', 'print', 'true', 'false', 'null',
+                        'new', 'self', 'var', 'void', 'bool', 'int', 'float', 'string'].map(k => ({
+                            label: k,
+                            kind: monaco.languages.CompletionItemKind.Keyword,
+                            insertText: k,
+                            range
+                        })),
+                    // Built-in functions
+                    ...['print', 'len', 'upper', 'lower', 'reverse', 'strip', 'replace', 'find', 'count'].map(fn => ({
+                        label: fn,
+                        kind: monaco.languages.CompletionItemKind.Function,
+                        insertText: `${fn}()`,
+                        range
+                    })),
+                    // Snippets
+                    {
+                        label: 'fn',
+                        kind: monaco.languages.CompletionItemKind.Snippet,
+                        insertText: ['fn ${1:name}(${2:args}) {', '\t$0', '}'].join('\n'),
+                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                        documentation: 'Function declaration',
+                        range
+                    },
+                    {
+                        label: 'if',
+                        kind: monaco.languages.CompletionItemKind.Snippet,
+                        insertText: ['if ${1:condition} {', '\t$0', '}'].join('\n'),
+                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                        documentation: 'If statement',
+                        range
+                    }
+                ];
+                return { suggestions };
             }
         });
     }, [monaco]);
@@ -192,6 +253,25 @@ export default function App() {
         return () => window.removeEventListener('keydown', k);
     }, [currentFile, code]);
 
+    // ── Resizer ────────────────────────────────────────────────────────────────
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isDragging.current) return;
+            const newHeight = window.innerHeight - e.clientY - 22; // 22 is status bar height
+            if (newHeight > 50 && newHeight < window.innerHeight - 150) {
+                setTerminalHeight(newHeight);
+            }
+        };
+        const handleMouseUp = () => { isDragging.current = false; document.body.style.cursor = 'default'; };
+
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, []);
+
     const isError = output.startsWith('Error') || output.startsWith('Fatal');
 
     return (
@@ -225,6 +305,9 @@ export default function App() {
                 </div>
                 <div className="toolbar-divider" />
                 <div className="no-drag">
+                    <button className="btn btn-ghost" onClick={() => setShowHelp(true)} title="Syntax Help">
+                        <IconHelp /> Help
+                    </button>
                     <button
                         className={`btn btn-run${isCompiling ? ' running' : ''}`}
                         onClick={handleRun}
@@ -285,12 +368,21 @@ export default function App() {
                             autoIndent: 'full',
                             contextmenu: true,
                             renderWhitespace: 'selection',
+                            suggestOnTriggerCharacters: true,
+                            quickSuggestions: true,
+                            snippetSuggestions: 'top',
                         }}
                     />
                 </div>
 
+                {/* Resizer */}
+                <div
+                    className="resizer"
+                    onMouseDown={() => { isDragging.current = true; document.body.style.cursor = 'row-resize'; }}
+                />
+
                 {/* Terminal */}
-                <div className="terminal-panel">
+                <div className="terminal-panel" style={{ height: terminalHeight, minHeight: terminalHeight }}>
                     <div className="terminal-header">
                         <div className="terminal-title">
                             <span className={`term-dot${isCompiling ? ' compiling' : ''}`} />
@@ -325,6 +417,44 @@ export default function App() {
                     <span>UTF-8</span>
                 </div>
             </div>
+
+            {/* ── Help Modal ── */}
+            {showHelp && (
+                <div className="help-overlay" onClick={() => setShowHelp(false)}>
+                    <div className="help-modal" onClick={e => e.stopPropagation()}>
+                        <div className="help-header">
+                            <h2>Quanta Syntax Guide</h2>
+                            <button className="help-close" onClick={() => setShowHelp(false)}>✕</button>
+                        </div>
+                        <div className="help-content">
+                            <div className="help-section">
+                                <h3>Comments</h3>
+                                <pre><code>@ Single line comment{'\n'}''' Multi-line{'\n'}    comment '''</code></pre>
+                            </div>
+                            <div className="help-section">
+                                <h3>Variables & Types</h3>
+                                <pre><code>let x = 10{'\n'}let name = "Quanta"{'\n'}let isAwesome = true</code></pre>
+                            </div>
+                            <div className="help-section">
+                                <h3>Functions</h3>
+                                <pre><code>fn greet(name) {'{\n'}  print("Hello " + name){'\n'}  return true{'\n'}{'}'}</code></pre>
+                            </div>
+                            <div className="help-section">
+                                <h3>Control Flow</h3>
+                                <pre><code>if x &gt; 5 {'{\n'}  print("Large"){'\n'}{'} '}elif x == 5 {'{\n'}  print("Five"){'\n'}{'} '}else {'{\n'}  print("Small"){'\n'}{'}'}</code></pre>
+                            </div>
+                            <div className="help-section">
+                                <h3>Loops</h3>
+                                <pre><code>let i = 0{'\n'}while i &lt; 5 {'{\n'}  print(i){'\n'}  i = i + 1{'\n'}{'}'}</code></pre>
+                            </div>
+                            <div className="help-section">
+                                <h3>Built-in Methods</h3>
+                                <pre><code>print(len("test"))         @ 4{'\n'}print(upper("abc"))        @ ABC{'\n'}print(replace("cat", "c", "b")) @ bat</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     );
