@@ -1,65 +1,86 @@
 cmake_minimum_required(VERSION 3.10)
 project(Quanta)
 
-# 1. Standard Settings
+# ── Standard Settings ────────────────────────────────────────────────────────
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-if (APPLE)
-    # 2. Paths
-    set(LLVM_PREFIX "/opt/homebrew/opt/llvm")
-    set(HOMEBREW_PREFIX "/opt/homebrew") # Standard location on Apple Silicon
+# ── LLVM Discovery ───────────────────────────────────────────────────────────
+# Priority 1: Use LLVM_DIR if passed from command line (e.g. GitHub Actions)
+#             cmake .. -DLLVM_DIR=/path/to/llvm/lib/cmake/llvm
+# Priority 2: Find llvm-config on PATH
+# Priority 3: macOS Homebrew default paths (works on developer machines)
 
-    # 3. Add Include and Library paths
-    include_directories(${LLVM_PREFIX}/include)
-
-    # Tell linker where to find zstd and other Homebrew libs
-    link_directories(${LLVM_PREFIX}/lib ${HOMEBREW_PREFIX}/lib)
-    
-    set(LLVM_CONFIG_EXE "${LLVM_PREFIX}/bin/llvm-config")
+if(DEFINED LLVM_DIR)
+    # When cmake is called with -DLLVM_DIR=..., find_package resolves everything
+    find_package(LLVM REQUIRED CONFIG)
+    message(STATUS "Found LLVM via LLVM_DIR: ${LLVM_DIR}")
+    include_directories(${LLVM_INCLUDE_DIRS})
+    add_definitions(${LLVM_DEFINITIONS})
+    llvm_map_components_to_libnames(LLVM_LIBS
+        core support irreader executionengine mcjit
+        x86asmparser x86codegen x86desc x86info
+        aarch64asmparser aarch64codegen aarch64desc aarch64info
+        analysis bitwriter passes
+    )
+    set(USE_FIND_PACKAGE TRUE)
 else()
-    # Assume llvm-config is in the PATH
-    set(LLVM_CONFIG_EXE "llvm-config")
+    # Fallback: use llvm-config executable
+    if(APPLE)
+        # Try Homebrew Apple Silicon first, then Intel
+        if(EXISTS "/opt/homebrew/opt/llvm/bin/llvm-config")
+            set(LLVM_CONFIG_EXE "/opt/homebrew/opt/llvm/bin/llvm-config")
+            set(LLVM_PREFIX "/opt/homebrew/opt/llvm")
+        elseif(EXISTS "/usr/local/opt/llvm/bin/llvm-config")
+            set(LLVM_CONFIG_EXE "/usr/local/opt/llvm/bin/llvm-config")
+            set(LLVM_PREFIX "/usr/local/opt/llvm")
+        endif()
+        include_directories(${LLVM_PREFIX}/include)
+        link_directories(${LLVM_PREFIX}/lib /opt/homebrew/lib /usr/local/lib)
+    else()
+        # Linux / Windows: llvm-config should be on PATH
+        set(LLVM_CONFIG_EXE "llvm-config")
+    endif()
+
+    execute_process(
+        COMMAND ${LLVM_CONFIG_EXE} --cxxflags
+        OUTPUT_VARIABLE LLVM_CXXFLAGS
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LLVM_CXXFLAGS}")
 endif()
 
-# 4. Get Compile Flags
-execute_process(
-    COMMAND ${LLVM_CONFIG_EXE} --cxxflags
-    OUTPUT_VARIABLE LLVM_CXXFLAGS
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LLVM_CXXFLAGS}")
-
-if (WIN32)
-    # Statically link runtime libraries on Windows so users don't need MinGW DLLs
+# Windows static linking
+if(WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
 endif()
 
-# 5. Define Executable
-add_executable(quanta 
-    src/main.cpp 
-    src/lexer.cpp 
-    src/parser.cpp 
+# ── Executable ───────────────────────────────────────────────────────────────
+add_executable(quanta
+    src/main.cpp
+    src/lexer.cpp
+    src/parser.cpp
     src/codegen.cpp
-    src/quanta_lib.c      # Runtime library compiled into quanta itself for ORC JIT symbol resolution
+    src/quanta_lib.c
 )
 
-# 6. Get Library List
-execute_process(
-    COMMAND ${LLVM_CONFIG_EXE} --libs --system-libs --link-static
-    OUTPUT_VARIABLE LLVM_LIBS_OUTPUT
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
-# Clean up output
-string(REPLACE "\n" " " LLVM_LIBS_CLEAN "${LLVM_LIBS_OUTPUT}")
-string(REPLACE " " ";" LLVM_LIBS_LIST "${LLVM_LIBS_CLEAN}")
-
-# 7. Link
-if (APPLE)
-    target_link_libraries(quanta PRIVATE ${LLVM_LIBS_LIST} z ncurses zstd)
-elseif (WIN32)
-    target_link_libraries(quanta PRIVATE ${LLVM_LIBS_LIST} z zstd)
+# ── Linking ──────────────────────────────────────────────────────────────────
+if(DEFINED USE_FIND_PACKAGE AND USE_FIND_PACKAGE)
+    target_link_libraries(quanta PRIVATE ${LLVM_LIBS})
 else()
-    target_link_libraries(quanta PRIVATE ${LLVM_LIBS_LIST} z ncurses zstd)
+    execute_process(
+        COMMAND ${LLVM_CONFIG_EXE} --libs --system-libs --link-static
+        OUTPUT_VARIABLE LLVM_LIBS_OUTPUT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    string(REPLACE "\n" " " LLVM_LIBS_CLEAN "${LLVM_LIBS_OUTPUT}")
+    string(REPLACE " " ";" LLVM_LIBS_LIST "${LLVM_LIBS_CLEAN}")
+
+    if(APPLE)
+        target_link_libraries(quanta PRIVATE ${LLVM_LIBS_LIST} z ncurses zstd)
+    elseif(WIN32)
+        target_link_libraries(quanta PRIVATE ${LLVM_LIBS_LIST} z zstd)
+    else()
+        target_link_libraries(quanta PRIVATE ${LLVM_LIBS_LIST} z ncurses zstd)
+    endif()
 endif()

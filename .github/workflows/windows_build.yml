@@ -105,13 +105,14 @@ jobs:
 
     - name: Install Clang + CMake (pre-installed on macOS runner)
       run: |
-        brew install cmake || true
+        brew install llvm cmake
+        echo "LLVM_PREFIX=$(brew --prefix llvm)" >> $GITHUB_ENV
 
     - name: Build Quanta CLI compiler (macOS)
       run: |
         mkdir -p build
         cd build
-        cmake ..
+        cmake .. -DLLVM_DIR="$(brew --prefix llvm)/lib/cmake/llvm"
         cmake --build .
 
     - name: Build Quanta Studio (macOS DMG)
@@ -142,7 +143,7 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential cmake clang libfuse2
+        sudo apt-get install -y build-essential cmake clang llvm-dev libfuse2
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
