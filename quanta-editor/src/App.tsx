@@ -34,7 +34,11 @@ const IconFile = () => (
     </svg>
 );
 
-const DEFAULT_CODE = `print("Welcome to Quanta")
+const DEFAULT_CODE = `fn main() {
+  print("Welcome to Quanta")
+}
+
+main()
 `;
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -167,8 +171,14 @@ export default function App() {
         setOutput('');
         try {
             const result = await window.electronAPI.executeCompiler(targetFile!);
-            if (result.error) setOutput(`Error:\n${result.stderr || result.error}`);
-            else setOutput(result.stdout || (result.stderr ? `Warnings:\n${result.stderr}` : 'Done (no output).'));
+            // Always combine stdout + stderr so nothing is lost
+            const combined = [result.stdout, result.stderr].filter(Boolean).join('\n').trim();
+            if (result.error) {
+                // Show whatever output the compiler produced, fall back to the error message
+                setOutput(combined || result.error);
+            } else {
+                setOutput(combined || 'Done (no output).');
+            }
         } catch (e: any) { setOutput(`Fatal error: ${e.message}`); }
         finally { setIsCompiling(false); }
     };
