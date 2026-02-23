@@ -41,12 +41,7 @@ const IconHelp = () => (
     </svg>
 );
 
-const DEFAULT_CODE = `fn main() {
-  print("Welcome to Quanta")
-}
-
-main()
-`;
+const DEFAULT_CODE = `print("Welcome to Quanta")`;
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
@@ -124,16 +119,16 @@ export default function App() {
 
                 const suggestions = [
                     // Keywords
-                    ...['fn', 'let', 'if', 'elif', 'else', 'return', 'while', 'for', 'loop', 'in',
-                        'class', 'struct', 'import', 'print', 'true', 'false', 'null',
-                        'new', 'self', 'var', 'void', 'bool', 'int', 'float', 'string'].map(k => ({
+                    ...['if', 'elif', 'else', 'return', 'loop', 'in',
+                        'import', 'print', 'true', 'false', 'null',
+                        'var', 'void', 'bool', 'int', 'float', 'string', 'char', 'all'].map(k => ({
                             label: k,
                             kind: monaco.languages.CompletionItemKind.Keyword,
                             insertText: k,
                             range
                         })),
                     // Built-in functions
-                    ...['print', 'len', 'upper', 'lower', 'reverse', 'strip', 'replace', 'find', 'count'].map(fn => ({
+                    ...['print', 'len', 'upper', 'lower', 'reverse', 'strip', 'lstrip', 'rstrip', 'capitalize', 'title', 'isalpha', 'isdigit', 'isspace', 'isalnum', 'find', 'count', 'startswith', 'endswith', 'replace'].map(fn => ({
                         label: fn,
                         kind: monaco.languages.CompletionItemKind.Function,
                         insertText: `${fn}()`,
@@ -141,9 +136,9 @@ export default function App() {
                     })),
                     // Snippets
                     {
-                        label: 'fn',
+                        label: 'func',
                         kind: monaco.languages.CompletionItemKind.Snippet,
-                        insertText: ['fn ${1:name}(${2:args}) {', '\t$0', '}'].join('\n'),
+                        insertText: ['${1:int} ${2:name}(${3:args}) {', '\t$0', '}'].join('\n'),
                         insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
                         documentation: 'Function declaration',
                         range
@@ -151,9 +146,17 @@ export default function App() {
                     {
                         label: 'if',
                         kind: monaco.languages.CompletionItemKind.Snippet,
-                        insertText: ['if ${1:condition} {', '\t$0', '}'].join('\n'),
+                        insertText: ['if (${1:condition}) {', '\t$0', '}'].join('\n'),
                         insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
                         documentation: 'If statement',
+                        range
+                    },
+                    {
+                        label: 'loop',
+                        kind: monaco.languages.CompletionItemKind.Snippet,
+                        insertText: ['loop (${1:condition}) {', '\t$0', '}'].join('\n'),
+                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                        documentation: 'Loop statement',
                         range
                     }
                 ];
@@ -433,19 +436,19 @@ export default function App() {
                             </div>
                             <div className="help-section">
                                 <h3>Variables & Types</h3>
-                                <pre><code>let x = 10{'\n'}let name = "Quanta"{'\n'}let isAwesome = true</code></pre>
+                                <pre><code>@ Implicit{'\n'}x = 100{'\n'}name = "Quanta"{'\n'}{'\n'}@ Explicit{'\n'}int age = 10{'\n'}float pi = 3.14{'\n'}var y = 50</code></pre>
                             </div>
                             <div className="help-section">
                                 <h3>Functions</h3>
-                                <pre><code>fn greet(name) {'{\n'}  print("Hello " + name){'\n'}  return true{'\n'}{'}'}</code></pre>
+                                <pre><code>int add(a, b) {'{\n'}  return a + b;\n{'}'}{'\n\n'}string greet(name) {'{\n'}  print("Hello " + name);\n{'}'}</code></pre>
                             </div>
                             <div className="help-section">
                                 <h3>Control Flow</h3>
-                                <pre><code>if x &gt; 5 {'{\n'}  print("Large"){'\n'}{'} '}elif x == 5 {'{\n'}  print("Five"){'\n'}{'} '}else {'{\n'}  print("Small"){'\n'}{'}'}</code></pre>
+                                <pre><code>if (x &gt; 5) {'{\n'}  print("Large");{'\n'}{'} '}elif (x == 5) {'{\n'}  print("Five");{'\n'}{'} '}else {'{\n'}  print("Small");{'\n'}{'}'}</code></pre>
                             </div>
                             <div className="help-section">
                                 <h3>Loops</h3>
-                                <pre><code>let i = 0{'\n'}while i &lt; 5 {'{\n'}  print(i){'\n'}  i = i + 1{'\n'}{'}'}</code></pre>
+                                <pre><code>int i = 0;{'\n'}loop (i &lt; 5) {'{\n'}  print(i);{'\n'}  i++;{'\n'}{'}'}</code></pre>
                             </div>
                             <div className="help-section">
                                 <h3>Built-in Methods</h3>
