@@ -116,6 +116,9 @@ jobs:
         cmake --build .
 
     - name: Build Quanta Studio (macOS DMG)
+      env:
+        CSC_IDENTITY_AUTO_DISCOVERY: false
+        CSC_IDENTITY: "-"
       run: |
         cd quanta-editor
         npm install --legacy-peer-deps
