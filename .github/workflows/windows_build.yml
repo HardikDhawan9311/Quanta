@@ -115,6 +115,12 @@ jobs:
         cmake .. -DLLVM_DIR="$(brew --prefix llvm)/lib/cmake/llvm"
         cmake --build .
 
+    - name: Bundle quanta binary into Electron resources
+      run: |
+        mkdir -p quanta-editor/resources
+        cp build/quanta quanta-editor/resources/quanta
+        chmod +x quanta-editor/resources/quanta
+
     - name: Build Quanta Studio (macOS DMG)
       env:
         CSC_IDENTITY_AUTO_DISCOVERY: false
@@ -159,6 +165,12 @@ jobs:
         cd build
         cmake ..
         cmake --build .
+
+    - name: Bundle quanta binary into Electron resources
+      run: |
+        mkdir -p quanta-editor/resources
+        cp build/quanta quanta-editor/resources/quanta
+        chmod +x quanta-editor/resources/quanta
 
     - name: Build Quanta Studio (Linux AppImage + .deb)
       run: |

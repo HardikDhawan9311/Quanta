@@ -51,6 +51,12 @@
       "dist/**/*",
       "dist-electron/**/*"
     ],
+    "extraResources": [
+      {
+        "from": "resources/quanta",
+        "to": "quanta"
+      }
+    ],
     "win": {
       "target": [
         "nsis",
@@ -70,7 +76,8 @@
         "zip"
       ],
       "category": "public.app-category.developer-tools",
-      "identity": null
+      "identity": null,
+      "executableName": "Quanta Studio"
     },
     "dmg": {
       "contents": [

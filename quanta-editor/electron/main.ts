@@ -107,11 +107,18 @@ ipcMain.handle('dialog:saveFileAs', async (_, content: string) => {
 ipcMain.handle('exec:quanta', async (_, filePath: string) => {
     return new Promise((resolve) => {
         const home = process.env.HOME || '';
+        const resourcesPath = process.resourcesPath || '';  // set by Electron when packaged
         const candidates = [
+            // 1. Bundled inside the .app / installed package (highest priority)
+            path.join(resourcesPath, 'quanta'),       // macOS/Linux: Contents/Resources/quanta
+            path.join(resourcesPath, 'quanta.exe'),   // Windows NSIS: resources\quanta.exe
+            // 2. Windows installer: quanta.exe one level above Quanta Studio folder
             path.join(path.dirname(process.execPath), '..', 'quanta.exe'),
             path.join(path.dirname(process.execPath), '..', 'quanta'),
+            // 3. macOS global installs
             '/opt/homebrew/bin/quanta',
             '/usr/local/bin/quanta',
+            // 4. Local dev build
             path.join(home, 'Desktop', 'Quanta', 'build', 'quanta'),
             path.join(home, 'Quanta', 'build', 'quanta'),
         ];
