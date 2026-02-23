@@ -73,7 +73,7 @@ ipcMain.handle('dialog:openFile', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
         properties: ['openFile'],
         filters: [
-            { name: 'Quanta Files', extensions: ['qunta', 'quanta', 'qt'] },
+            { name: 'Quanta Files', extensions: ['qnt', 'quanta'] },
             { name: 'All Files', extensions: ['*'] }
         ]
     });
@@ -94,7 +94,7 @@ ipcMain.handle('dialog:saveFileAs', async (_, content: string) => {
     if (!mainWindow) return null;
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
         filters: [
-            { name: 'Quanta Files', extensions: ['qunta', 'quanta', 'qt'] }
+            { name: 'Quanta Files', extensions: ['qnt', 'quanta'] }
         ]
     });
     if (canceled || !filePath) return null;

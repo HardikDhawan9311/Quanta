@@ -61,7 +61,7 @@ export default function App() {
     const [output, setOutput] = useState<string>('');
     const [isCompiling, setIsCompiling] = useState<boolean>(false);
     const [currentFile, setCurrentFile] = useState<string | null>(null);
-    const [fileName, setFileName] = useState<string>('Untitled.qunta');
+    const [fileName, setFileName] = useState<string>('Untitled.qnt');
     const [isDirty, setIsDirty] = useState<boolean>(false);
 
     const monaco = useMonaco();

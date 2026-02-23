@@ -1107,11 +1107,22 @@ void generateObjectCode() {
     auto CPU = "generic";
     auto Features = "";
     llvm::TargetOptions opt;
-    // Explicitly construct llvm::Triple — compatible with LLVM 16/17/18/19/20/21
-    // on Windows, macOS, and Linux (Triple constructor is explicit, cannot implicit-convert std::string)
+    // ── LLVM API version split ────────────────────────────────────────────────
+    // LLVM 18 (Linux apt):  createTargetMachine(StringRef) + setTargetTriple(StringRef)
+    // LLVM 19-20 (Windows): createTargetMachine(StringRef, deprecated) + setTargetTriple(Triple)
+    // LLVM 21 (macOS brew): createTargetMachine(Triple) + setTargetTriple(Triple)
+#if LLVM_VERSION_MAJOR >= 21
     llvm::Triple TT(TargetTriple);
     auto TargetMachine = Target->createTargetMachine(TT, CPU, Features, opt, llvm::Reloc::PIC_);
     TheModule->setTargetTriple(TT);
+#elif LLVM_VERSION_MAJOR >= 19
+    llvm::Triple TT(TargetTriple);
+    auto TargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, opt, llvm::Reloc::PIC_);
+    TheModule->setTargetTriple(TT);
+#else
+    auto TargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, opt, llvm::Reloc::PIC_);
+    TheModule->setTargetTriple(TargetTriple);
+#endif
     TheModule->setDataLayout(TargetMachine->createDataLayout());
     std::error_code EC;
     llvm::raw_fd_ostream dest("output.o", EC, llvm::sys::fs::OF_None);
