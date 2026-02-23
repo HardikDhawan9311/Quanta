@@ -1299,16 +1299,33 @@ llvm::Value *StringIndexAST::codegen() {
             VarInfo &info = NamedValues[name];
             
             if (info.Type->isArrayTy() || info.Type->isStructTy()) {
-                llvm::Value *IdxVal = IndexExpr->codegen();
-                if (!IdxVal) return nullptr;
 
                 if (info.Type->isArrayTy()) {
-                    // Fixed Array (Stack)
-                    llvm::Value *IdxList[] = { llvm::ConstantInt::get(Builder->getInt32Ty(), 0), IdxVal };
+                    // Fixed Array (Stack) - N-dimensional Support
+                    std::vector<llvm::Value*> IdxList;
+                    IdxList.push_back(llvm::ConstantInt::get(Builder->getInt32Ty(), 0));
+                    for (auto &idxAST : Indices) {
+                        llvm::Value *IdxVal = idxAST->codegen();
+                        if (!IdxVal) return nullptr;
+                        IdxList.push_back(IdxVal);
+                    }
                     llvm::Value *ElementPtr = Builder->CreateInBoundsGEP(info.Type, info.Alloca, IdxList);
-                    return Builder->CreateLoad(info.Type->getArrayElementType(), ElementPtr, "arr_read");
+
+                    // Compute the yield type dynamically
+                    llvm::Type *YieldType = info.Type;
+                    for (size_t i = 0; i < Indices.size(); i++) {
+                        if (auto *AT = llvm::dyn_cast<llvm::ArrayType>(YieldType)) {
+                            YieldType = AT->getElementType();
+                        }
+                    }
+
+                    return Builder->CreateLoad(YieldType, ElementPtr, "arr_read");
                 } else if (info.Type->isStructTy()) {
-                    // Dynamic List (Heap)
+                    // Dynamic List (Heap) - Only 1D supported for dynamic reading so far
+                    if (Indices.size() != 1) return LogErrorV("Multi-dimensional dynamic lists not yet supported for reading");
+                    llvm::Value *IdxVal = Indices[0]->codegen();
+                    if (!IdxVal) return nullptr;
+
                     llvm::Value *PtrField = Builder->CreateStructGEP(info.Type, info.Alloca, 0);
                     llvm::Value *BufferPtr = Builder->CreateLoad(Builder->getPtrTy(), PtrField);
                     
@@ -1321,7 +1338,9 @@ llvm::Value *StringIndexAST::codegen() {
     }
 
     llvm::Value *Base = BaseExpr->codegen();
-    llvm::Value *Index = IndexExpr->codegen();
+    if (Indices.empty()) return nullptr;
+    if (Indices.size() > 1) return LogErrorV("Strings only support 1D indexing.");
+    llvm::Value *Index = Indices[0]->codegen();
     if (!Base || !Index) return nullptr;
     if (!Base->getType()->isPointerTy()) return LogErrorV("String index base must be a string (pointer).");
     if (!Index->getType()->isIntegerTy()) return LogErrorV("String index must be an integer.");
@@ -1464,35 +1483,71 @@ llvm::Value *FixedArrayDeclAST::codegen() {
     else if (TypeName == "bool" || TypeName == "char") ElementType = Builder->getInt8Ty();
 
     // Allocate Array on the Stack
-    llvm::ArrayType *ArrayTy = llvm::ArrayType::get(ElementType, Size);
+    llvm::Type *ArrayTy = ElementType;
+    for (auto it = Dimensions.rbegin(); it != Dimensions.rend(); ++it) {
+        ArrayTy = llvm::ArrayType::get(ArrayTy, *it);
+    }
     llvm::AllocaInst *ArrayAlloca = Builder->CreateAlloca(ArrayTy, nullptr, VarName);
 
-    // Initialize Elements if provided [a, b, c]
+    // Initialize Elements if provided
     if (InitValue) {
         if (auto *ArrayLit = dynamic_cast<ArrayExprAST*>(InitValue.get())) {
-            for (size_t i = 0; i < ArrayLit->Elements.size() && i < Size; i++) {
-                llvm::Value *Val = ArrayLit->Elements[i]->codegen();
-                if (!Val) return nullptr;
-                
-                // Automatic Type Casting
-                if (Val->getType() != ElementType) {
-                    if (Val->getType()->isIntegerTy() && ElementType->isFloatingPointTy()) 
-                        Val = Builder->CreateSIToFP(Val, ElementType);
-                    else if (Val->getType()->isFloatingPointTy() && ElementType->isIntegerTy()) 
-                        Val = Builder->CreateFPToSI(Val, ElementType);
-                    else if (Val->getType()->isIntegerTy() && ElementType->isIntegerTy())
-                        Val = Builder->CreateIntCast(Val, ElementType, true);
+            
+            // 1D Array Initialization
+            if (Dimensions.size() == 1) {
+                int Size = Dimensions[0];
+                for (size_t i = 0; i < ArrayLit->Elements.size() && i < Size; i++) {
+                    llvm::Value *Val = ArrayLit->Elements[i]->codegen();
+                    if (!Val) return nullptr;
+                    
+                    if (Val->getType() != ElementType) {
+                        if (Val->getType()->isIntegerTy() && ElementType->isFloatingPointTy()) Val = Builder->CreateSIToFP(Val, ElementType);
+                        else if (Val->getType()->isFloatingPointTy() && ElementType->isIntegerTy()) Val = Builder->CreateFPToSI(Val, ElementType);
+                        else if (Val->getType()->isIntegerTy() && ElementType->isIntegerTy()) Val = Builder->CreateIntCast(Val, ElementType, true);
+                    }
+                    
+                    llvm::Value *IdxList[] = { llvm::ConstantInt::get(Builder->getInt32Ty(), 0), llvm::ConstantInt::get(Builder->getInt32Ty(), i) };
+                    llvm::Value *ElementPtr = Builder->CreateInBoundsGEP(ArrayTy, ArrayAlloca, IdxList, "element_ptr");
+                    Builder->CreateStore(Val, ElementPtr);
                 }
-                
-                llvm::Value *IdxList[] = { llvm::ConstantInt::get(Builder->getInt32Ty(), 0), 
-                                           llvm::ConstantInt::get(Builder->getInt32Ty(), i) };
-                llvm::Value *ElementPtr = Builder->CreateInBoundsGEP(ArrayTy, ArrayAlloca, IdxList, "element_ptr");
-                Builder->CreateStore(Val, ElementPtr);
+            }
+            // 2D Matrix Initialization
+            else if (Dimensions.size() == 2) {
+                int Rows = Dimensions[0];
+                int Cols = Dimensions[1];
+                for (size_t i = 0; i < ArrayLit->Elements.size() && i < Rows; i++) {
+                    if (auto *SubArrayLit = dynamic_cast<ArrayExprAST*>(ArrayLit->Elements[i].get())) {
+                        for (size_t j = 0; j < SubArrayLit->Elements.size() && j < Cols; j++) {
+                            llvm::Value *Val = SubArrayLit->Elements[j]->codegen();
+                            if (!Val) return nullptr;
+                            
+                            if (Val->getType() != ElementType) {
+                                if (Val->getType()->isIntegerTy() && ElementType->isFloatingPointTy()) Val = Builder->CreateSIToFP(Val, ElementType);
+                                else if (Val->getType()->isFloatingPointTy() && ElementType->isIntegerTy()) Val = Builder->CreateFPToSI(Val, ElementType);
+                                else if (Val->getType()->isIntegerTy() && ElementType->isIntegerTy()) Val = Builder->CreateIntCast(Val, ElementType, true);
+                            }
+                            
+                            llvm::Value *IdxList[] = { 
+                                llvm::ConstantInt::get(Builder->getInt32Ty(), 0), 
+                                llvm::ConstantInt::get(Builder->getInt32Ty(), i),
+                                llvm::ConstantInt::get(Builder->getInt32Ty(), j)
+                            };
+                            llvm::Value *ElementPtr = Builder->CreateInBoundsGEP(ArrayTy, ArrayAlloca, IdxList, "matrix_ptr");
+                            Builder->CreateStore(Val, ElementPtr);
+                        }
+                    }
+                }
+            } else {
+                return LogErrorV("Static array initializers only support up to 2 dimensions currently.");
             }
         }
     }
 
-    NamedValues[VarName] = VarInfo{ArrayAlloca, ArrayTy, TypeName + "[" + std::to_string(Size) + "]", ElementType};
+    std::string FullTypeName = TypeName;
+    for (int d : Dimensions) {
+        FullTypeName += "[" + std::to_string(d) + "]";
+    }
+    NamedValues[VarName] = VarInfo{ArrayAlloca, ArrayTy, FullTypeName, ElementType};
     return ArrayAlloca;
 }
 
@@ -1563,16 +1618,25 @@ llvm::Value *IndexAssignAST::codegen() {
     if (NamedValues.find(name) == NamedValues.end()) return LogErrorV("Unknown variable in index assignment");
 
     VarInfo &info = NamedValues[name];
-    llvm::Value *Idx = Index->codegen();
     llvm::Value *Val = Value->codegen();
-    if (!Idx || !Val) return nullptr;
+    if (!Val) return nullptr;
 
     if (info.Type->isArrayTy()) {
-        llvm::Value *IdxList[] = { llvm::ConstantInt::get(Builder->getInt32Ty(), 0), Idx };
+        std::vector<llvm::Value*> IdxList;
+        IdxList.push_back(llvm::ConstantInt::get(Builder->getInt32Ty(), 0));
+        for (auto &idxAST : Indices) {
+            llvm::Value *IdxVal = idxAST->codegen();
+            if (!IdxVal) return nullptr;
+            IdxList.push_back(IdxVal);
+        }
         llvm::Value *ElementPtr = Builder->CreateInBoundsGEP(info.Type, info.Alloca, IdxList, "arr_write");
         Builder->CreateStore(Val, ElementPtr);
         return Val;
     } else if (info.Type->isStructTy()) {
+        if (Indices.size() != 1) return LogErrorV("Multi-dimensional dynamic lists not yet supported for writing");
+        llvm::Value *Idx = Indices[0]->codegen();
+        if (!Idx) return nullptr;
+
         llvm::Value *PtrField = Builder->CreateStructGEP(info.Type, info.Alloca, 0);
         llvm::Value *BufferPtr = Builder->CreateLoad(Builder->getPtrTy(), PtrField);
         llvm::Value *ElementPtr = Builder->CreateGEP(info.ElementType, BufferPtr, Idx, "list_write");
@@ -1580,6 +1644,10 @@ llvm::Value *IndexAssignAST::codegen() {
         return Val;
     } else if (info.Type->isPointerTy()) {
         // String / Pointer mutation
+        if (Indices.size() != 1) return LogErrorV("Strings only support 1D indexing.");
+        llvm::Value *Idx = Indices[0]->codegen();
+        if (!Idx) return nullptr;
+
         llvm::Value *BufferPtr = Builder->CreateLoad(Builder->getPtrTy(), info.Alloca);
         llvm::Value *Idx64 = Idx->getType()->getIntegerBitWidth() < 64
                              ? Builder->CreateSExt(Idx, Builder->getInt64Ty())

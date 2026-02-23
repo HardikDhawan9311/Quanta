@@ -713,15 +713,20 @@ std::unique_ptr<ASTNode> parseVarDecl() {
     bool isDynamicList = false;
     bool isFixedArray = false;
     bool isFixedString = false;
+    std::vector<int> dimensions;
+    int listDims = 0;
     
-    // Check if the very next token is "["
-    if (getTok().value == "[") {
+    // Parse dimensions: e.g. [3][3] or [][]
+    while (getTok().value == "[") {
         advance(); // Eat '['
         if (getTok().value == "]") {
             isDynamicList = true;
+            listDims++;
             advance(); // Eat ']'
         } else if (getTok().type == TOK_NUMBER) {
-            capacity = std::stoi(getTok().value);
+            int dimSize = std::stoi(getTok().value);
+            dimensions.push_back(dimSize);
+            capacity = dimSize; // For string compatibility
             if (typeTok.type == TOK_STRING) {
                 isFixedString = true;
             } else {
@@ -733,6 +738,10 @@ std::unique_ptr<ASTNode> parseVarDecl() {
         } else {
             return LogError("Expected number or ']' after '[' in type declaration");
         }
+    }
+
+    if (isFixedArray && isDynamicList) {
+        return LogError("Cannot mix fixed and dynamic array syntax. Use [3][3] or [][]");
     }
     // ==========================================================
     
@@ -836,10 +845,10 @@ std::unique_ptr<ASTNode> parseVarDecl() {
         return std::make_unique<FixedStringDeclAST>(name, capacity, std::move(init));
     }
     if (isDynamicList) {
-        return std::make_unique<DynamicListDeclAST>(name, typeStr, std::move(init));
+        return std::make_unique<DynamicListDeclAST>(name, typeStr, listDims, std::move(init));
     }
     if (isFixedArray) {
-        return std::make_unique<FixedArrayDeclAST>(name, typeStr, capacity, std::move(init));
+        return std::make_unique<FixedArrayDeclAST>(name, typeStr, dimensions, std::move(init));
     }
     return std::make_unique<VarDeclAST>(name, typeStr, bytes, std::move(init));
 }
@@ -881,6 +890,8 @@ std::unique_ptr<ASTNode> parsePostfix() {
     auto LHS = parsePrimary();
     if (!LHS) return nullptr;
 
+    std::vector<std::unique_ptr<ASTNode>> indices;
+
     // String index s[i] or slice s[start:end] or s[start:end:step]
     while (getTok().value == "[") {
         advance(); // Eat '['
@@ -888,19 +899,34 @@ std::unique_ptr<ASTNode> parsePostfix() {
         if (!first) return nullptr;
         if (getTok().value == "]") {
             advance();
+            indices.push_back(std::move(first));
             
-            // --- NEW: Array/String Index Assignment arr[i] = x ---
+            // Are there more brackets?
+            if (getTok().value == "[") {
+                continue; // loop again to collect more indices
+            }
+
+            // No more brackets. Check if it's an assignment: arr[i][j] = x
             if (getTok().value == "=") {
                 advance(); // Eat '='
                 auto RHS = parseExpression();
                 if (!RHS) return nullptr;
-                LHS = std::make_unique<IndexAssignAST>(std::move(LHS), std::move(first), std::move(RHS));
+                LHS = std::make_unique<IndexAssignAST>(std::move(LHS), std::move(indices), std::move(RHS));
+                indices.clear();
                 continue;
             }
             
-            LHS = std::make_unique<StringIndexAST>(std::move(LHS), std::move(first));
+            // Just a read access: arr[i][j]
+            LHS = std::make_unique<StringIndexAST>(std::move(LHS), std::move(indices));
+            indices.clear();
             continue;
         }
+
+        // It's a slice: arr[start:end]
+        if (!indices.empty()) {
+            return LogError("Multi-dimensional slices are not supported yet");
+        }
+        
         if (getTok().value != ":") return LogError("Expected ']' or ':' in subscript");
         advance();
         auto endExpr = parseExpression();

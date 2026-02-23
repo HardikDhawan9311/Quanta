@@ -270,14 +270,14 @@ public:
     llvm::Value *codegen() override;
 };
 
-// s[i] -> returns char (i8), stack-only load
+// s[i] or s[i][j] -> returns char/element, stack-only load
 class StringIndexAST : public ASTNode {
     std::unique_ptr<ASTNode> BaseExpr;
-    std::unique_ptr<ASTNode> IndexExpr;
+    std::vector<std::unique_ptr<ASTNode>> Indices;
 
 public:
-    StringIndexAST(std::unique_ptr<ASTNode> base, std::unique_ptr<ASTNode> index)
-        : BaseExpr(std::move(base)), IndexExpr(std::move(index)) {}
+    StringIndexAST(std::unique_ptr<ASTNode> base, std::vector<std::unique_ptr<ASTNode>> indices)
+        : BaseExpr(std::move(base)), Indices(std::move(indices)) {}
 
     llvm::Value *codegen() override;
 };
@@ -343,10 +343,10 @@ class FixedArrayDeclAST : public ASTNode {
 public:
     std::string VarName;
     std::string TypeName;
-    int Size;
+    std::vector<int> Dimensions;
     std::unique_ptr<ASTNode> InitValue;
-    FixedArrayDeclAST(std::string varName, std::string typeName, int size, std::unique_ptr<ASTNode> initValue)
-        : VarName(varName), TypeName(typeName), Size(size), InitValue(std::move(initValue)) {}
+    FixedArrayDeclAST(std::string varName, std::string typeName, std::vector<int> dimensions, std::unique_ptr<ASTNode> initValue)
+        : VarName(varName), TypeName(typeName), Dimensions(dimensions), InitValue(std::move(initValue)) {}
     llvm::Value *codegen() override;
 };
 
@@ -354,19 +354,20 @@ class DynamicListDeclAST : public ASTNode {
 public:
     std::string VarName;
     std::string TypeName;
+    int Dimensions;
     std::unique_ptr<ASTNode> InitValue;
-    DynamicListDeclAST(std::string varName, std::string typeName, std::unique_ptr<ASTNode> initValue)
-        : VarName(varName), TypeName(typeName), InitValue(std::move(initValue)) {}
+    DynamicListDeclAST(std::string varName, std::string typeName, int dimensions, std::unique_ptr<ASTNode> initValue)
+        : VarName(varName), TypeName(typeName), Dimensions(dimensions), InitValue(std::move(initValue)) {}
     llvm::Value *codegen() override;
 };
 
 class IndexAssignAST : public ASTNode {
 public:
     std::unique_ptr<ASTNode> Obj;
-    std::unique_ptr<ASTNode> Index;
+    std::vector<std::unique_ptr<ASTNode>> Indices;
     std::unique_ptr<ASTNode> Value;
-    IndexAssignAST(std::unique_ptr<ASTNode> obj, std::unique_ptr<ASTNode> index, std::unique_ptr<ASTNode> value)
-        : Obj(std::move(obj)), Index(std::move(index)), Value(std::move(value)) {}
+    IndexAssignAST(std::unique_ptr<ASTNode> obj, std::vector<std::unique_ptr<ASTNode>> indices, std::unique_ptr<ASTNode> value)
+        : Obj(std::move(obj)), Indices(std::move(indices)), Value(std::move(value)) {}
     llvm::Value *codegen() override;
 };
 

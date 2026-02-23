@@ -56,6 +56,7 @@ export default function App() {
 
     const [terminalHeight, setTerminalHeight] = useState<number>(210);
     const [showHelp, setShowHelp] = useState<boolean>(false);
+    const [helpTab, setHelpTab] = useState<string>('Variables & Types');
     const isDragging = useRef<boolean>(false);
 
     const monaco = useMonaco();
@@ -432,48 +433,94 @@ export default function App() {
                             </div>
                             <button className="help-close" onClick={() => setShowHelp(false)}>✕</button>
                         </div>
-                        <div className="help-content">
-
-                            <div className="help-section">
-                                <h3>Variables & Types</h3>
-                                <pre><code>@ Implicit types{'\n'}x = 100{'\n'}name = "Quanta"{'\n'}isValid = true{'\n'}{'\n'}@ Explicit types{'\n'}int age = 10{'\n'}float pi = 3.14{'\n'}string msg = "Hello"</code></pre>
+                        <div className="help-body">
+                            {/* ── Sidebar ── */}
+                            <div className="help-sidebar">
+                                {['Variables & Types', 'Arrays & Lists', '2D Matrix Arrays', 'Functions & Defaults', 'Control Flow', 'Loops', 'String Methods', 'String Validation', 'Comments'].map(tab => (
+                                    <button
+                                        key={tab}
+                                        className={`help-tab ${helpTab === tab ? 'active' : ''}`}
+                                        onClick={() => setHelpTab(tab)}
+                                    >
+                                        {tab}
+                                    </button>
+                                ))}
                             </div>
 
-                            <div className="help-section">
-                                <h3>Arrays & Lists</h3>
-                                <pre><code>@ Fixed Array (Size 3){'\n'}int[3] arr = [10, 20, 30];{'\n'}arr[1] = 99;{'\n'}{'\n'}@ Dynamic List (Resizable){'\n'}int[] list = [5, 10];{'\n'}list.push(15);{'\n'}int last = list.pop();{'\n'}print(list.len());</code></pre>
-                            </div>
+                            {/* ── Content Area ── */}
+                            <div className="help-content-area">
+                                {helpTab === 'Variables & Types' && (
+                                    <div className="help-section animated">
+                                        <h3>Variables & Types</h3>
+                                        <p>Quanta supports both dynamically and statically typed initializations.</p>
+                                        <pre><code>@ Implicit types{'\n'}x = 100{'\n'}name = "Quanta"{'\n'}isValid = true{'\n'}{'\n'}@ Explicit types{'\n'}int age = 10{'\n'}float pi = 3.14{'\n'}string msg = "Hello"</code></pre>
+                                    </div>
+                                )}
 
-                            <div className="help-section">
-                                <h3>Functions & Defaults</h3>
-                                <pre><code>@ Standard function{'\n'}int add(a, b) {'{\n'}  return a + b;{'\n'}{'}'}{'\n\n'}@ Default arguments{'\n'}int area(w=10, h=20) {'{\n'}  return w * h;{'\n'}{'}'}</code></pre>
-                            </div>
+                                {helpTab === 'Arrays & Lists' && (
+                                    <div className="help-section animated">
+                                        <h3>Arrays & Lists</h3>
+                                        <p>Arrays are fixed in size and live on the stack. Lists grow dynamically on the heap.</p>
+                                        <pre><code>@ Fixed Array (Size 3){'\n'}int[3] arr = [10, 20, 30];{'\n'}arr[1] = 99;{'\n'}{'\n'}@ Dynamic List (Resizable){'\n'}int[] list = [5, 10];{'\n'}list.push(15);{'\n'}int last = list.pop();{'\n'}print(list.len());</code></pre>
+                                    </div>
+                                )}
 
-                            <div className="help-section">
-                                <h3>Control Flow</h3>
-                                <pre><code>if (x &gt; 5) {'{\n'}  print("Large");{'\n'}{'} '}elif (x == 5) {'{\n'}  print("Five");{'\n'}{'} '}else {'{\n'}  print("Small");{'\n'}{'}'}</code></pre>
-                            </div>
+                                {helpTab === '2D Matrix Arrays' && (
+                                    <div className="help-section animated">
+                                        <h3>2D Matrix Arrays</h3>
+                                        <p>Create multi-dimensional grids for math and maps.</p>
+                                        <pre><code>@ Static 2D Array{'\n'}int[2][3] mat = [[1, 2], [3, 4]];{'\n'}mat[0][1] = 99;{'\n'}{'\n'}@ Dynamic 2D List{'\n'}int[][] grid = [[1], [2, 3]];{'\n'}print(grid[1][0]); @ Prints 2</code></pre>
+                                    </div>
+                                )}
 
-                            <div className="help-section">
-                                <h3>Loops</h3>
-                                <pre><code>int i = 0;{'\n'}loop (i &lt; 5) {'{\n'}  print(i);{'\n'}  i++;{'\n'}{'}'}</code></pre>
-                            </div>
+                                {helpTab === 'Functions & Defaults' && (
+                                    <div className="help-section animated">
+                                        <h3>Functions & Defaults</h3>
+                                        <p>Declare functions with specific types and elegant default parameter fallbacks.</p>
+                                        <pre><code>@ Standard function{'\n'}int add(a, b) {'{\n'}  return a + b;{'\n'}{'}'}{'\n\n'}@ Default arguments{'\n'}int area(w=10, h=20) {'{\n'}  return w * h;{'\n'}{'}'}</code></pre>
+                                    </div>
+                                )}
 
-                            <div className="help-section">
-                                <h3>String Methods</h3>
-                                <pre><code>string s = " Quanta Language "{'\n'}{'\n'}len(s)        @ length{'\n'}upper(s)      @ " QUANTA ..."{'\n'}lower(s)      @ " quanta ..."{'\n'}strip(s)      @ removes spaces{'\n'}replace(s, "a", "A"){'\n'}reverse(s){'\n'}find(s, "Lan") @ returns index</code></pre>
-                            </div>
+                                {helpTab === 'Control Flow' && (
+                                    <div className="help-section animated">
+                                        <h3>Control Flow</h3>
+                                        <p>Standard conditional logic for branching paths.</p>
+                                        <pre><code>if (x &gt; 5) {'{\n'}  print("Large");{'\n'}{'} '}elif (x == 5) {'{\n'}  print("Five");{'\n'}{'} '}else {'{\n'}  print("Small");{'\n'}{'}'}</code></pre>
+                                    </div>
+                                )}
 
-                            <div className="help-section">
-                                <h3>String Validation</h3>
-                                <pre><code>string val = "Hello"{'\n'}{'\n'}isalpha(val)   @ true{'\n'}isdigit(val)   @ false{'\n'}isspace(val)   @ false{'\n'}isalnum(val)   @ true{'\n'}startswith(val, "He") @ true{'\n'}endswith(val, "lo")   @ true</code></pre>
-                            </div>
+                                {helpTab === 'Loops' && (
+                                    <div className="help-section animated">
+                                        <h3>Loops</h3>
+                                        <p>An infinite/conditional `loop` keyword replaces standard while/for.</p>
+                                        <pre><code>int i = 0;{'\n'}loop (i &lt; 5) {'{\n'}  print(i);{'\n'}  i++;{'\n'}{'}'}</code></pre>
+                                    </div>
+                                )}
 
-                            <div className="help-section">
-                                <h3>Comments</h3>
-                                <pre><code>@ Single line comment{'\n\n'}'''{'\n'}Multi-line block comment{'\n'}for longer explanations{'\n'}'''</code></pre>
-                            </div>
+                                {helpTab === 'String Methods' && (
+                                    <div className="help-section animated">
+                                        <h3>String Methods</h3>
+                                        <p>Built-in manipulation methods that act on strings.</p>
+                                        <pre><code>string s = " Quanta Language "{'\n'}{'\n'}len(s)        @ length{'\n'}upper(s)      @ " QUANTA ..."{'\n'}lower(s)      @ " quanta ..."{'\n'}strip(s)      @ removes spaces{'\n'}replace(s, "a", "A"){'\n'}reverse(s){'\n'}find(s, "Lan") @ returns index</code></pre>
+                                    </div>
+                                )}
 
+                                {helpTab === 'String Validation' && (
+                                    <div className="help-section animated">
+                                        <h3>String Validation</h3>
+                                        <p>Useful boolean checks for verifying characters.</p>
+                                        <pre><code>string val = "Hello"{'\n'}{'\n'}isalpha(val)   @ true{'\n'}isdigit(val)   @ false{'\n'}isspace(val)   @ false{'\n'}isalnum(val)   @ true{'\n'}startswith(val, "He") @ true{'\n'}endswith(val, "lo")   @ true</code></pre>
+                                    </div>
+                                )}
+
+                                {helpTab === 'Comments' && (
+                                    <div className="help-section animated">
+                                        <h3>Comments</h3>
+                                        <p>Add notes unheeded by the compiler.</p>
+                                        <pre><code>@ Single line comment{'\n\n'}'''{'\n'}Multi-line block comment{'\n'}for longer explanations{'\n'}'''</code></pre>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

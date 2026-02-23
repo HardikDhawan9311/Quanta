@@ -563,39 +563,99 @@ body,
   color: var(--text-1);
 }
 
-.help-content {
-  padding: 20px;
+.help-body {
+  display: flex;
+  height: calc(85vh - 65px);
+}
+
+.help-sidebar {
+  width: 200px;
+  min-width: 200px;
+  background: var(--bg-0);
+  border-right: 1px solid var(--border);
+  padding: 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   overflow-y: auto;
-  max-height: calc(85vh - 65px);
-  /* Ensure scrolling works below header */
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+}
+
+.help-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.help-tab:hover {
+  background: var(--bg-1);
+  color: var(--text-1);
+}
+
+.help-tab.active {
+  background: rgba(198, 120, 221, 0.15);
+  /* Quanta purple hint */
+  color: var(--keyword);
+  /* #c678dd */
+}
+
+.help-content-area {
+  flex: 1;
+  padding: 24px 30px;
+  overflow-y: auto;
+  position: relative;
 }
 
 /* Adjust to 1 column on small screens */
-@media (max-width: 600px) {
-  .help-content {
-    grid-template-columns: 1fr;
+@media (max-width: 650px) {
+  .help-body {
+    flex-direction: column;
+  }
+
+  .help-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    flex-direction: row;
+    padding: 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+  }
+
+  .help-tab {
+    flex-shrink: 0;
   }
 }
 
 .help-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .help-section h3 {
   margin: 0;
+  font-size: 18px;
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+.help-section p {
+  margin: 0;
   font-size: 13px;
   color: var(--text-2);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  line-height: 1.5;
 }
 
 .help-section pre {
-  margin: 0;
+  margin: 8px 0 0 0;
   background: var(--bg-0);
   border: 1px solid var(--border-lt);
   border-radius: var(--radius);
@@ -618,13 +678,17 @@ body,
 }
 
 @keyframes slide-up {
-  from {
-    transform: translateY(10px) scale(0.98);
+  0% {
     opacity: 0;
+    transform: translateY(20px) scale(0.98);
   }
 
-  to {
-    transform: translateY(0) scale(1);
+  100% {
     opacity: 1;
+    transform: translateY(0) scale(1);
   }
+}
+
+.animated {
+  animation: fade-in 0.25s ease-out;
 }

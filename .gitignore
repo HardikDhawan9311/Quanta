@@ -2,3 +2,7 @@
 build/
 Quanta_Release/
 Output/
+quanta-editor/release/
+quanta-editor/dist/
+quanta-editor/node_modules/
+quanta-editor/debug_asar/
