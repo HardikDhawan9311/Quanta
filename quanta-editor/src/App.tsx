@@ -65,6 +65,36 @@ export default function App() {
     useEffect(() => {
         if (!monaco) return;
         monaco.languages.register({ id: 'quanta' });
+
+        // ── Language Configuration (Auto-Closing Brackets) ───────────────────
+        monaco.languages.setLanguageConfiguration('quanta', {
+            comments: {
+                lineComment: '@',
+                blockComment: ["'''", "'''"]
+            },
+            brackets: [
+                ['{', '}'],
+                ['[', ']'],
+                ['(', ')']
+            ],
+            autoClosingPairs: [
+                { open: '{', close: '}' },
+                { open: '[', close: ']' },
+                { open: '(', close: ')' },
+                { open: '"', close: '"' },
+                { open: "'", close: "'" },
+                { open: "'''", close: "'''" }
+            ],
+            surroundingPairs: [
+                { open: '{', close: '}' },
+                { open: '[', close: ']' },
+                { open: '(', close: ')' },
+                { open: '"', close: '"' },
+                { open: "'", close: "'" }
+            ]
+        });
+
+        // ── Syntax Highlighting Tokens ───────────────────────────────────────
         monaco.languages.setMonarchTokensProvider('quanta', {
             keywords: ['fn', 'let', 'if', 'elif', 'else', 'return', 'while', 'for', 'loop', 'in',
                 'class', 'struct', 'import', 'print', 'true', 'false', 'null',
@@ -501,7 +531,7 @@ export default function App() {
                                     <div className="help-section animated">
                                         <h3>String Methods</h3>
                                         <p>Built-in manipulation methods that act on strings.</p>
-                                        <pre><code>string s = " Quanta Language "{'\n'}{'\n'}len(s)        @ length{'\n'}upper(s)      @ " QUANTA ..."{'\n'}lower(s)      @ " quanta ..."{'\n'}strip(s)      @ removes spaces{'\n'}replace(s, "a", "A"){'\n'}reverse(s){'\n'}find(s, "Lan") @ returns index</code></pre>
+                                        <pre><code>string s = " Quanta Language "{'\n'}{'\n'}s.len()        @ length{'\n'}s.upper()      @ " QUANTA ..."{'\n'}s.lower()      @ " quanta ..."{'\n'}s.strip()      @ removes spaces{'\n'}s.replace("a", "A"){'\n'}s.reverse(){'\n'}s.find("Lan")  @ returns index</code></pre>
                                     </div>
                                 )}
 
@@ -509,7 +539,7 @@ export default function App() {
                                     <div className="help-section animated">
                                         <h3>String Validation</h3>
                                         <p>Useful boolean checks for verifying characters.</p>
-                                        <pre><code>string val = "Hello"{'\n'}{'\n'}isalpha(val)   @ true{'\n'}isdigit(val)   @ false{'\n'}isspace(val)   @ false{'\n'}isalnum(val)   @ true{'\n'}startswith(val, "He") @ true{'\n'}endswith(val, "lo")   @ true</code></pre>
+                                        <pre><code>string val = "Hello"{'\n'}{'\n'}val.isalpha()   @ true{'\n'}val.isdigit()   @ false{'\n'}val.isspace()   @ false{'\n'}val.isalnum()   @ true{'\n'}val.startswith("He") @ true{'\n'}val.endswith("lo")   @ true</code></pre>
                                     </div>
                                 )}
 

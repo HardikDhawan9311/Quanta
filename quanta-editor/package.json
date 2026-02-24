@@ -44,6 +44,7 @@
   "build": {
     "appId": "com.quantalang.editor",
     "productName": "Quanta Studio",
+    "afterPack": "postpack.js",
     "directories": {
       "output": "release"
     },
