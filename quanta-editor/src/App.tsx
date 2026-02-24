@@ -635,16 +635,23 @@ export default function App() {
                             <button className="help-close" onClick={() => !isGenerating && setShowAiModal(false)}>✕</button>
                         </div>
                         <div className="ai-body">
-                            <div className="ai-input-group">
-                                <label>Gemini API Key (Saved Locally)</label>
-                                <input
-                                    type="password"
-                                    placeholder="AIzaSy..."
-                                    value={apiKey}
-                                    onChange={(e) => setApiKey(e.target.value)}
-                                    disabled={isGenerating}
-                                />
-                            </div>
+                            {localStorage.getItem('quanta_gemini_key') ? (
+                                <div className="ai-input-group" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-editor)', padding: '10px 14px', borderRadius: 'var(--radius)', border: '1px solid var(--border-lt)' }}>
+                                    <span style={{ color: 'var(--green)', fontSize: '13px', fontWeight: 500 }}>✓ API Key Configured Securely</span>
+                                    <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => { localStorage.removeItem('quanta_gemini_key'); setApiKey(''); }}>Change Key</button>
+                                </div>
+                            ) : (
+                                <div className="ai-input-group">
+                                    <label>Gemini API Key (Required Once)</label>
+                                    <input
+                                        type="password"
+                                        placeholder="AIzaSy..."
+                                        value={apiKey}
+                                        onChange={(e) => setApiKey(e.target.value)}
+                                        disabled={isGenerating}
+                                    />
+                                </div>
+                            )}
                             <div className="ai-input-group">
                                 <label>What should I write?</label>
                                 <textarea
