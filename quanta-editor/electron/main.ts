@@ -217,33 +217,7 @@ ipcMain.handle('api:fetchLeetcode', async (_, titleSlug: string) => {
                         slug
                     }
                     hints
-                    solution {
-                        id
-                        canSeeDetail
-                        paidOnly
-                        hasVideoSolution
-                        paidOnlyVideo
-                    }
-                    status
                     sampleTestCase
-                    metaData
-                    judgerAvailable
-                    judgeType
-                    mysqlSchemas
-                    enableRunCode
-                    enableTestMode
-                    enableDebugger
-                    envInfo
-                    libraryUrl
-                    adminUrl
-                    challengeQuestion {
-                        id
-                        date
-                        incompleteChallengeCount
-                        streakCount
-                        type
-                    }
-                    notes
                 }
             }
         `;
@@ -253,10 +227,11 @@ ipcMain.handle('api:fetchLeetcode', async (_, titleSlug: string) => {
             headers: {
                 'Content-Type': 'application/json',
                 'Referer': 'https://leetcode.com/',
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             },
             body: JSON.stringify({
-                query,
-                variables: { titleSlug }
+                query: query,
+                variables: { titleSlug: titleSlug }
             })
         });
 

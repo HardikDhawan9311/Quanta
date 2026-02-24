@@ -413,6 +413,9 @@ export default function App() {
                     const fnName = result.data.titleSlug.replace(/-([a-z])/g, (_: string, g: string) => g.toUpperCase());
                     setCode(`@ Practice: ${result.data.title}\n@ Difficulty: ${result.data.difficulty}\n\nfn ${fnName}() {\n    @ Write your solution here\n    \n}`);
                 }
+            } else {
+                setOutput("Error: Practice Mode requires the Desktop App. LeetCode blocks standard web browsers (CORS).");
+                setPracticeProblem(null);
             }
         } catch (e: any) {
             setOutput(`Failed to fetch: ${e.message}`);
