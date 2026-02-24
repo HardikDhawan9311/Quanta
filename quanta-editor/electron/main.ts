@@ -140,15 +140,10 @@ ipcMain.handle('exec:quanta', async (_, filePath: string) => {
 // ─── IPC: AI Code Generation (Gemini) ─────────────────────────────────────────
 import { GoogleGenAI } from '@google/genai';
 
-ipcMain.handle('ai:generate', async (_, prompt: string) => {
+ipcMain.handle('ai:generate', async (_, prompt: string, apiKey: string) => {
     try {
-        // SECURITY WARNING: Hardcoding API keys is generally discouraged as they can be 
-        // extracted from the compiled Electron app. However, since the user explicitly 
-        // requested not to ask the end-user for a key, you must provide your own key here.
-        const GEMINI_API_KEY = "AIzaSyClSM_94yUXHkbZrq4Rq0e1dKtKML5n7cw";
-
-        if (!GEMINI_API_KEY || GEMINI_API_KEY.length < 10) {
-            return { error: 'Developer Error: No valid Gemini API Key provided in main.ts.' };
+        if (!apiKey) {
+            return { error: 'No Gemini API Key provided. Please configure it in settings.' };
         }
 
         // Find the bundled syntax.qnt file containing all rules of Quanta
@@ -166,12 +161,14 @@ ipcMain.handle('ai:generate', async (_, prompt: string) => {
             }
         }
 
-        const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+        const ai = new GoogleGenAI({ apiKey: apiKey });
 
         const systemPrompt = `You are an expert AI code generator exclusively for the Quanta programming language. 
 1. DO NOT WRAP CODE IN MARKDOWN BLOCKS (like \`\`\`quanta). Return raw text.
 2. Under no circumstances should you generate code in C, C++, Python, or Rust.
-3. Read the following master syntax file carefully to understand how Quanta operates.
+3. INLINE COMMENTS MUST USE \`@\`. NEVER USE \`//\`.
+4. DO NOT WRAP THE CODE IN A \`main()\` FUNCTION unless the user explicitly asks for it. Quanta supports top-level execution.
+5. Read the following master syntax file carefully to understand how Quanta operates.
 
 MASTER QUANTA SYNTAX:
 ${syntaxContext}

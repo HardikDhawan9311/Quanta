@@ -69,6 +69,7 @@ export default function App() {
     // AI Generation State
     const [showAiModal, setShowAiModal] = useState<boolean>(false);
     const [aiPrompt, setAiPrompt] = useState<string>('');
+    const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('quanta_gemini_key') || '');
     const [isGenerating, setIsGenerating] = useState<boolean>(false);
 
     const monaco = useMonaco();
@@ -262,17 +263,24 @@ export default function App() {
     // ── AI Code Generation ─────────────────────────────────────────────────────
     const handleGenerateCode = async () => {
         if (!aiPrompt.trim()) return;
+        if (!apiKey) {
+            setOutput("Error: Please provide a Gemini API Key to use AI Code Generation.");
+            return;
+        }
 
         setIsGenerating(true);
         setOutput("Generating code with Gemini...");
 
         try {
             if (window.electronAPI) {
-                const result = await window.electronAPI.aiGenerate(aiPrompt);
+                const result = await window.electronAPI.aiGenerate(aiPrompt, apiKey);
 
                 if (result.error) {
                     setOutput(`AI Error: ${result.error}`);
                 } else if (result.code) {
+
+                    // Save key for future use if successful
+                    localStorage.setItem('quanta_gemini_key', apiKey);
 
                     // Insert at current cursor position or replace everything if empty
                     const editor = monaco?.editor.getModels()[0];
@@ -627,6 +635,16 @@ export default function App() {
                             <button className="help-close" onClick={() => !isGenerating && setShowAiModal(false)}>✕</button>
                         </div>
                         <div className="ai-body">
+                            <div className="ai-input-group">
+                                <label>Gemini API Key (Saved Locally)</label>
+                                <input
+                                    type="password"
+                                    placeholder="AIzaSy..."
+                                    value={apiKey}
+                                    onChange={(e) => setApiKey(e.target.value)}
+                                    disabled={isGenerating}
+                                />
+                            </div>
                             <div className="ai-input-group">
                                 <label>What should I write?</label>
                                 <textarea
