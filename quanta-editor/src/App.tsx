@@ -81,9 +81,62 @@ export default function App() {
 
     // Practice Mode State
     const [isPracticeMode, setIsPracticeMode] = useState<boolean>(false);
-    const [practiceSearch, setPracticeSearch] = useState<string>('two-sum');
+    const [practiceSearch, setPracticeSearch] = useState<string>('');
     const [practiceProblem, setPracticeProblem] = useState<any>(null);
     const [isFetchingProblem, setIsFetchingProblem] = useState<boolean>(false);
+    const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
+
+    // Popular LeetCode problems for autocomplete
+    const POPULAR_PROBLEMS = [
+        '1. Two Sum', '2. Add Two Numbers', '3. Longest Substring Without Repeating Characters',
+        '4. Median of Two Sorted Arrays', '5. Longest Palindromic Substring',
+        '7. Reverse Integer', '9. Palindrome Number', '11. Container With Most Water',
+        '13. Roman to Integer', '14. Longest Common Prefix', '15. 3Sum',
+        '20. Valid Parentheses', '21. Merge Two Sorted Lists', '22. Generate Parentheses',
+        '26. Remove Duplicates from Sorted Array', '33. Search in Rotated Sorted Array',
+        '42. Trapping Rain Water', '46. Permutations', '48. Rotate Image',
+        '49. Group Anagrams', '53. Maximum Subarray', '56. Merge Intervals',
+        '70. Climbing Stairs', '76. Minimum Window Substring', '78. Subsets',
+        '84. Largest Rectangle in Histogram', '94. Binary Tree Inorder Traversal',
+        '98. Validate Binary Search Tree', '100. Same Tree', '101. Symmetric Tree',
+        '102. Binary Tree Level Order Traversal', '104. Maximum Depth of Binary Tree',
+        '121. Best Time to Buy and Sell Stock', '124. Binary Tree Maximum Path Sum',
+        '125. Valid Palindrome', '128. Longest Consecutive Sequence',
+        '136. Single Number', '138. Copy List with Random Pointer',
+        '139. Word Break', '141. Linked List Cycle', '143. Reorder List',
+        '146. LRU Cache', '150. Evaluate Reverse Polish Notation',
+        '152. Maximum Product Subarray', '153. Find Minimum in Rotated Sorted Array',
+        '155. Min Stack', '160. Intersection of Two Linked Lists',
+        '167. Two Sum II', '169. Majority Element', '189. Rotate Array',
+        '190. Reverse Bits', '191. Number of 1 Bits', '200. Number of Islands',
+        '206. Reverse Linked List', '207. Course Schedule', '208. Implement Trie',
+        '210. Course Schedule II', '211. Design Add and Search Words Data Structure',
+        '212. Word Search II', '215. Kth Largest Element in an Array',
+        '217. Contains Duplicate', '226. Invert Binary Tree', '230. Kth Smallest Element in a BST',
+        '235. Lowest Common Ancestor of a BST', '238. Product of Array Except Self',
+        '242. Valid Anagram', '252. Meeting Rooms', '253. Meeting Rooms II',
+        '261. Graph Valid Tree', '268. Missing Number', '269. Alien Dictionary',
+        '271. Encode and Decode Strings', '286. Walls and Gates',
+        '287. Find the Duplicate Number', '295. Find Median from Data Stream',
+        '297. Serialize and Deserialize Binary Tree', '300. Longest Increasing Subsequence',
+        '322. Coin Change', '323. Number of Connected Components in an Undirected Graph',
+        '329. Longest Increasing Path in a Matrix', '338. Counting Bits',
+        '347. Top K Frequent Elements', '371. Sum of Two Integers',
+        '378. Kth Smallest Element in a Sorted Matrix', '424. Longest Repeating Character Replacement',
+        '435. Non-overlapping Intervals', '448. Find All Numbers Disappeared in an Array',
+        '543. Diameter of Binary Tree', '572. Subtree of Another Tree',
+        '567. Permutation in String', '647. Palindromic Substrings',
+        '678. Valid Parenthesis String', '695. Max Area of Island',
+        '703. Kth Largest Element in a Stream', '704. Binary Search',
+        '739. Daily Temperatures', '743. Network Delay Time', '763. Partition Labels',
+        '778. Swim in Rising Water', '784. Letter Case Permutation',
+        '853. Car Fleet', '875. Koko Eating Bananas', '876. Middle of the Linked List',
+        '973. K Closest Points to Origin', '981. Time Based Key-Value Store',
+        '994. Rotting Oranges', '1002. Find Common Characters', '1046. Last Stone Weight',
+        '1143. Longest Common Subsequence', '1161. Maximum Level Sum of a Binary Tree',
+        '1254. Number of Closed Islands', '1448. Count Good Nodes in Binary Tree',
+        '1899. Merge Triplets to Form Target Triplet',
+    ];
 
     const monaco = useMonaco();
 
@@ -411,7 +464,8 @@ export default function App() {
                     setOutput(`Loaded: ${result.data.title}`);
                     // Pre-fill editor with a starter function based on the title slug
                     const fnName = result.data.titleSlug.replace(/-([a-z])/g, (_: string, g: string) => g.toUpperCase());
-                    setCode(`@ Practice: ${result.data.title}\n@ Difficulty: ${result.data.difficulty}\n\nfn ${fnName}() {\n    @ Write your solution here\n    \n}`);
+                    setCode(`@ Practice: ${result.data.title}\n@ Difficulty: ${result.data.difficulty}\n\ndatatype ${fnName}() {\n    @ Write your solution here\n    \n}`);
+                    setShowSuggestions(false);
                 }
             } else {
                 setOutput("Error: Practice Mode requires the Desktop App. LeetCode blocks standard web browsers (CORS).");
@@ -482,17 +536,48 @@ export default function App() {
                 {/* Practice Left Pane (LeetCode Problem) */}
                 {isPracticeMode && (
                     <div className="practice-left-pane">
-                        <div className="practice-search-bar">
-                            <input
-                                type="text"
-                                className="practice-input"
-                                value={practiceSearch}
-                                onChange={e => setPracticeSearch(e.target.value)}
-                                placeholder="E.g., 1. Two Sum, or two-sum"
-                                onKeyDown={e => e.key === 'Enter' && handleFetchPractice()}
-                            />
-                            <button className="btn" onClick={handleFetchPractice} disabled={isFetchingProblem}>
-                                {isFetchingProblem ? '...' : 'Load'}
+                        <div className="practice-search-bar" style={{ position: 'relative' }}>
+                            <div style={{ flex: 1, position: 'relative' }}>
+                                <input
+                                    type="text"
+                                    className="practice-input"
+                                    value={practiceSearch}
+                                    onChange={e => { setPracticeSearch(e.target.value); setShowSuggestions(true); }}
+                                    placeholder="Search by number or name (e.g. 1. Two Sum)"
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter') { setShowSuggestions(false); handleFetchPractice(); }
+                                        if (e.key === 'Escape') setShowSuggestions(false);
+                                    }}
+                                    onFocus={() => setShowSuggestions(true)}
+                                    onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                                    style={{ width: '100%' }}
+                                />
+                                {showSuggestions && practiceSearch.trim().length > 0 && (() => {
+                                    const q = practiceSearch.toLowerCase();
+                                    const filtered = POPULAR_PROBLEMS.filter(p =>
+                                        p.toLowerCase().includes(q)
+                                    ).slice(0, 8);
+                                    return filtered.length > 0 ? (
+                                        <div className="practice-suggestions">
+                                            {filtered.map((p, i) => (
+                                                <div
+                                                    key={i}
+                                                    className="practice-suggestion-item"
+                                                    onMouseDown={() => {
+                                                        setPracticeSearch(p);
+                                                        setShowSuggestions(false);
+                                                        setTimeout(() => handleFetchPractice(), 50);
+                                                    }}
+                                                >
+                                                    {p}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : null;
+                                })()}
+                            </div>
+                            <button className="btn btn-load" onClick={() => { setShowSuggestions(false); handleFetchPractice(); }} disabled={isFetchingProblem}>
+                                {isFetchingProblem ? '⏳' : 'Load'}
                             </button>
                         </div>
 
