@@ -388,12 +388,21 @@ export default function App() {
     // ── Practice Mode (LeetCode) ───────────────────────────────────────────────
     const handleFetchPractice = async () => {
         if (!practiceSearch.trim()) return;
+
+        // Auto-format the user's input into a valid LeetCode slug
+        // E.g., "1. Two Sum" -> "two-sum", "Merge k Sorted Lists" -> "merge-k-sorted-lists"
+        const formattedSlug = practiceSearch
+            .toLowerCase()
+            .replace(/^[0-9]+\.\s*/, '') // Remove leading numbers like "1. "
+            .trim()
+            .replace(/[^a-z0-9]+/g, '-'); // Replace spaces and special chars with hyphens
+
         setIsFetchingProblem(true);
-        setOutput(`Fetching LeetCode problem: ${practiceSearch}...`);
+        setOutput(`Fetching LeetCode problem: ${formattedSlug}...`);
 
         try {
             if (window.electronAPI) {
-                const result = await window.electronAPI.fetchLeetcode(practiceSearch);
+                const result = await window.electronAPI.fetchLeetcode(formattedSlug);
                 if (result.error) {
                     setOutput(`Error: ${result.error}`);
                     setPracticeProblem(null);
@@ -476,7 +485,7 @@ export default function App() {
                                 className="practice-input"
                                 value={practiceSearch}
                                 onChange={e => setPracticeSearch(e.target.value)}
-                                placeholder="LeetCode Slug (e.g. two-sum)"
+                                placeholder="E.g., 1. Two Sum, or two-sum"
                                 onKeyDown={e => e.key === 'Enter' && handleFetchPractice()}
                             />
                             <button className="btn" onClick={handleFetchPractice} disabled={isFetchingProblem}>
