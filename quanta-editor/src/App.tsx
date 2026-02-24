@@ -444,11 +444,11 @@ export default function App() {
 
     const getLeetcodeReturnType = (problem: any): string => {
         try {
-            if (!problem?.metaData) return 'datatype';
+            if (!problem?.metaData) return 'int';
             const meta = JSON.parse(problem.metaData);
             const rawType = meta?.return?.type || '';
-            return LEETCODE_TO_QUANTA_TYPE[rawType] || 'datatype';
-        } catch { return 'datatype'; }
+            return LEETCODE_TO_QUANTA_TYPE[rawType] || 'int';
+        } catch { return 'int'; }
     };
 
     const handleAiSuggest = async () => {
@@ -515,12 +515,13 @@ export default function App() {
     const isError = output.startsWith('Error') || output.startsWith('Fatal');
 
     // ── Practice Mode (LeetCode) ───────────────────────────────────────────────
-    const handleFetchPractice = async () => {
-        if (!practiceSearch.trim()) return;
+    const handleFetchPractice = async (overrideSearch?: string) => {
+        const raw = overrideSearch ?? practiceSearch;
+        if (!raw.trim()) return;
 
         // Auto-format the user's input into a valid LeetCode slug
         // E.g., "1. Two Sum" -> "two-sum", "Merge k Sorted Lists" -> "merge-k-sorted-lists"
-        const formattedSlug = practiceSearch
+        const formattedSlug = raw
             .toLowerCase()
             .replace(/^[0-9]+\.\s*/, '') // Remove leading numbers like "1. "
             .trim()
@@ -643,7 +644,7 @@ export default function App() {
                                                     onMouseDown={() => {
                                                         setPracticeSearch(p);
                                                         setShowSuggestions(false);
-                                                        setTimeout(() => handleFetchPractice(), 50);
+                                                        handleFetchPractice(p);
                                                     }}
                                                 >
                                                     {p}
