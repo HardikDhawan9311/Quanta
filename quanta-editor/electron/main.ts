@@ -198,3 +198,85 @@ Output ONLY valid, functional Quanta source code designed to run perfectly.`;
         return { error: error.message || 'Unknown error occurred during code generation' };
     }
 });
+
+// ─── IPC: LeetCode Integration (GraphQL) ──────────────────────────────────────
+ipcMain.handle('api:fetchLeetcode', async (_, titleSlug: string) => {
+    try {
+        const query = `
+            query questionData($titleSlug: String!) {
+                question(titleSlug: $titleSlug) {
+                    questionId
+                    questionFrontendId
+                    title
+                    titleSlug
+                    content
+                    difficulty
+                    exampleTestcases
+                    topicTags {
+                        name
+                        slug
+                    }
+                    hints
+                    solution {
+                        id
+                        canSeeDetail
+                        paidOnly
+                        hasVideoSolution
+                        paidOnlyVideo
+                    }
+                    status
+                    sampleTestCase
+                    metaData
+                    judgerAvailable
+                    judgeType
+                    mysqlSchemas
+                    enableRunCode
+                    enableTestMode
+                    enableDebugger
+                    envInfo
+                    libraryUrl
+                    adminUrl
+                    challengeQuestion {
+                        id
+                        date
+                        incompleteChallengeCount
+                        streakCount
+                        type
+                    }
+                    notes
+                }
+            }
+        `;
+
+        const response = await fetch('https://leetcode.com/graphql', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Referer': 'https://leetcode.com/',
+            },
+            body: JSON.stringify({
+                query,
+                variables: { titleSlug }
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`LeetCode API returned ${response.status} ${response.statusText}`);
+        }
+
+        const data: any = await response.json();
+
+        if (data.errors) {
+            return { error: data.errors[0]?.message || 'GraphQL Error' };
+        }
+
+        if (!data.data || !data.data.question) {
+            return { error: 'Problem not found on LeetCode.' };
+        }
+
+        return { data: data.data.question };
+
+    } catch (error: any) {
+        return { error: error.message || 'Failed to fetch LeetCode data' };
+    }
+});

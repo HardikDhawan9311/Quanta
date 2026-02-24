@@ -42,9 +42,16 @@ const IconHelp = () => (
 );
 
 const IconSparkles = () => (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-        <path d="M8 0l1.928 4.671L14.5 6.5l-4.572 1.829L8 13l-1.928-4.671L1.5 6.5l4.572-1.829z" />
-        <path d="M13.5 11l.964 2.336L16.5 14l-2.036.814L13.5 17l-.964-2.186L10.5 14l2.036-.814z" />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M m 10,2 l 1.5,4 c 0.5,1.5 1.5,2.5 3,3 l 4,1.5 c 1.5,0.5 1.5,2.5 0,3 l -4,1.5 c -1.5,0.5 -2.5,1.5 -3,3 l -1.5,4 c -0.5,1.5 -2.5,1.5 -3,0 l -1.5,-4 c -0.5,-1.5 -1.5,-2.5 -3,-3 l -4,-1.5 c -1.5,-0.5 -1.5,-2.5 0,-3 l 4,-1.5 c 1.5,-0.5 2.5,-1.5 3,-3 l 1.5,-4 c 0.5,-1.5 2.5,-1.5 3,0 z" />
+    </svg>
+);
+
+const IconTarget = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <circle cx="12" cy="12" r="6" />
+        <circle cx="12" cy="12" r="2" />
     </svg>
 );
 
@@ -71,6 +78,12 @@ export default function App() {
     const [aiPrompt, setAiPrompt] = useState<string>('');
     const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('quanta_gemini_key') || '');
     const [isGenerating, setIsGenerating] = useState<boolean>(false);
+
+    // Practice Mode State
+    const [isPracticeMode, setIsPracticeMode] = useState<boolean>(false);
+    const [practiceSearch, setPracticeSearch] = useState<string>('two-sum');
+    const [practiceProblem, setPracticeProblem] = useState<any>(null);
+    const [isFetchingProblem, setIsFetchingProblem] = useState<boolean>(false);
 
     const monaco = useMonaco();
 
@@ -372,6 +385,33 @@ export default function App() {
 
     const isError = output.startsWith('Error') || output.startsWith('Fatal');
 
+    // ── Practice Mode (LeetCode) ───────────────────────────────────────────────
+    const handleFetchPractice = async () => {
+        if (!practiceSearch.trim()) return;
+        setIsFetchingProblem(true);
+        setOutput(`Fetching LeetCode problem: ${practiceSearch}...`);
+
+        try {
+            if (window.electronAPI) {
+                const result = await window.electronAPI.fetchLeetcode(practiceSearch);
+                if (result.error) {
+                    setOutput(`Error: ${result.error}`);
+                    setPracticeProblem(null);
+                } else if (result.data) {
+                    setPracticeProblem(result.data);
+                    setOutput(`Loaded: ${result.data.title}`);
+                    // Pre-fill editor with a starter function based on the title slug
+                    const fnName = result.data.titleSlug.replace(/-([a-z])/g, (_: string, g: string) => g.toUpperCase());
+                    setCode(`@ Practice: ${result.data.title}\n@ Difficulty: ${result.data.difficulty}\n\nfn ${fnName}() {\n    @ Write your solution here\n    \n}`);
+                }
+            }
+        } catch (e: any) {
+            setOutput(`Failed to fetch: ${e.message}`);
+        } finally {
+            setIsFetchingProblem(false);
+        }
+    };
+
     return (
         <div className="app">
 
@@ -403,6 +443,9 @@ export default function App() {
                 </div>
                 <div className="toolbar-divider" />
                 <div className="no-drag">
+                    <button className={`btn btn-ghost practice-btn ${isPracticeMode ? 'active' : ''}`} onClick={() => setIsPracticeMode(!isPracticeMode)} title="Practice Mode">
+                        <IconTarget /> Practice
+                    </button>
                     <button className="btn btn-ghost ai-btn" onClick={() => setShowAiModal(true)} title="Generate Code with AI">
                         <IconSparkles /> Generate
                     </button>
@@ -422,89 +465,132 @@ export default function App() {
             </div>
 
             {/* ── Content ── */}
-            <div className="content">
+            <div className={`content ${isPracticeMode ? 'practice-mode-active' : ''}`}>
 
-                {/* Tab Bar */}
-                <div className="tab-bar">
-                    <div className="tab active">
-                        <span className="tab-icon"><IconFile /></span>
-                        <span>{isDirty ? '● ' : ''}{fileName}</span>
-                    </div>
-                    <div className="tab-bar-actions no-drag">
-                        <button className="tab-new-btn" onClick={handleNewFile} title="New file">＋</button>
-                    </div>
-                </div>
-
-                {/* Editor */}
-                <div className="editor-pane">
-                    <Editor
-                        key={editorKey}
-                        height="100%"
-                        language="quanta"
-                        theme="quantaTheme"
-                        value={code}
-                        onChange={handleEditorChange}
-                        loading={
-                            <div className="editor-loading">
-                                <div className="editor-loading-spinner" />
-                                <span>Loading editor…</span>
-                            </div>
-                        }
-                        options={{
-                            minimap: { enabled: true, scale: 1 },
-                            fontSize: 14,
-                            fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace",
-                            fontLigatures: true,
-                            lineHeight: 22,
-                            padding: { top: 14, bottom: 14 },
-                            scrollBeyondLastLine: false,
-                            smoothScrolling: true,
-                            cursorBlinking: 'smooth',
-                            cursorSmoothCaretAnimation: 'on',
-                            formatOnPaste: true,
-                            wordWrap: 'on',
-                            bracketPairColorization: { enabled: true },
-                            renderLineHighlight: 'line',
-                            tabSize: 2,
-                            autoIndent: 'full',
-                            contextmenu: true,
-                            renderWhitespace: 'selection',
-                            suggestOnTriggerCharacters: true,
-                            quickSuggestions: true,
-                            snippetSuggestions: 'top',
-                        }}
-                    />
-                </div>
-
-                {/* Resizer */}
-                <div
-                    className="resizer"
-                    onMouseDown={() => { isDragging.current = true; document.body.style.cursor = 'row-resize'; }}
-                />
-
-                {/* Terminal */}
-                <div className="terminal-panel" style={{ height: terminalHeight, minHeight: terminalHeight }}>
-                    <div className="terminal-header">
-                        <div className="terminal-title">
-                            <span className={`term-dot${isCompiling ? ' compiling' : ''}`} />
-                            OUTPUT
+                {/* Practice Left Pane (LeetCode Problem) */}
+                {isPracticeMode && (
+                    <div className="practice-left-pane">
+                        <div className="practice-search-bar">
+                            <input
+                                type="text"
+                                className="practice-input"
+                                value={practiceSearch}
+                                onChange={e => setPracticeSearch(e.target.value)}
+                                placeholder="LeetCode Slug (e.g. two-sum)"
+                                onKeyDown={e => e.key === 'Enter' && handleFetchPractice()}
+                            />
+                            <button className="btn" onClick={handleFetchPractice} disabled={isFetchingProblem}>
+                                {isFetchingProblem ? '...' : 'Load'}
+                            </button>
                         </div>
-                        <button className="terminal-clear" onClick={() => setOutput('')}>✕ Clear</button>
+
+                        <div className="practice-problem-container">
+                            {practiceProblem ? (
+                                <div className="practice-problem-content">
+                                    <div className="practice-header">
+                                        <h2>{practiceProblem.title}</h2>
+                                        <span className={`diff-badge diff-${practiceProblem.difficulty?.toLowerCase()}`}>
+                                            {practiceProblem.difficulty}
+                                        </span>
+                                    </div>
+                                    <div
+                                        className="practice-html"
+                                        dangerouslySetInnerHTML={{ __html: practiceProblem.content }}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="practice-empty">
+                                    <IconTarget />
+                                    <p>Load a problem to begin.</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                    <div className="terminal-body">
-                        {output ? (
-                            <>
-                                <span className="term-prompt">$ quanta </span>
-                                <span className="term-fname">{fileName}</span>
-                                {'\n\n'}
-                                <span className={isError ? 'term-error' : 'term-out'}>{output}</span>
-                            </>
-                        ) : (
-                            <span className="term-empty">Press ▶ Run Code to execute your program…</span>
-                        )}
+                )}
+
+                {/* Main Right Pane (Editor & Terminal) */}
+                <div className="main-pane">
+                    {/* Tab Bar */}
+                    <div className="tab-bar">
+                        <div className="tab active">
+                            <span className="tab-icon"><IconFile /></span>
+                            <span>{isDirty ? '● ' : ''}{fileName}</span>
+                        </div>
+                        <div className="tab-bar-actions no-drag">
+                            <button className="tab-new-btn" onClick={handleNewFile} title="New file">＋</button>
+                        </div>
+                    </div>
+
+                    {/* Editor */}
+                    <div className="editor-pane">
+                        <Editor
+                            key={editorKey}
+                            height="100%"
+                            language="quanta"
+                            theme="quantaTheme"
+                            value={code}
+                            onChange={handleEditorChange}
+                            loading={
+                                <div className="editor-loading">
+                                    <div className="editor-loading-spinner" />
+                                    <span>Loading editor…</span>
+                                </div>
+                            }
+                            options={{
+                                minimap: { enabled: true, scale: 1 },
+                                fontSize: 14,
+                                fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace",
+                                fontLigatures: true,
+                                lineHeight: 22,
+                                padding: { top: 14, bottom: 14 },
+                                scrollBeyondLastLine: false,
+                                smoothScrolling: true,
+                                cursorBlinking: 'smooth',
+                                cursorSmoothCaretAnimation: 'on',
+                                formatOnPaste: true,
+                                wordWrap: 'on',
+                                bracketPairColorization: { enabled: true },
+                                renderLineHighlight: 'line',
+                                tabSize: 2,
+                                autoIndent: 'full',
+                                contextmenu: true,
+                                renderWhitespace: 'selection',
+                                suggestOnTriggerCharacters: true,
+                                quickSuggestions: true,
+                                snippetSuggestions: 'top',
+                            }}
+                        />
+                    </div>
+
+                    {/* Resizer */}
+                    <div
+                        className="resizer"
+                        onMouseDown={() => { isDragging.current = true; document.body.style.cursor = 'row-resize'; }}
+                    />
+
+                    {/* Terminal */}
+                    <div className="terminal-panel" style={{ height: terminalHeight, minHeight: terminalHeight }}>
+                        <div className="terminal-header">
+                            <div className="terminal-title">
+                                <span className={`term-dot${isCompiling ? ' compiling' : ''}`} />
+                                OUTPUT
+                            </div>
+                            <button className="terminal-clear" onClick={() => setOutput('')}>✕ Clear</button>
+                        </div>
+                        <div className="terminal-body">
+                            {output ? (
+                                <>
+                                    <span className="term-prompt">$ quanta </span>
+                                    <span className="term-fname">{fileName}</span>
+                                    {'\n\n'}
+                                    <span className={isError ? 'term-error' : 'term-out'}>{output}</span>
+                                </>
+                            ) : (
+                                <span className="term-empty">Press ▶ Run Code to execute your program…</span>
+                            )}
+                        </div>
                     </div>
                 </div>
-
             </div>
 
             {/* ── Status Bar ── */}

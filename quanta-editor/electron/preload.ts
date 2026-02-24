@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveFileAs: (content: string) => ipcRenderer.invoke('dialog:saveFileAs', content),
     saveFile: (filePath: string, content: string) => ipcRenderer.invoke('fs:saveFile', filePath, content),
     executeCompiler: (filePath: string) => ipcRenderer.invoke('exec:quanta', filePath),
-    aiGenerate: (prompt: string, apiKey: string) => ipcRenderer.invoke('ai:generate', prompt, apiKey)
+    aiGenerate: (prompt: string, apiKey: string) => ipcRenderer.invoke('ai:generate', prompt, apiKey),
+    fetchLeetcode: (titleSlug: string) => ipcRenderer.invoke('api:fetchLeetcode', titleSlug)
 });
