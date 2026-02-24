@@ -136,3 +136,68 @@ ipcMain.handle('exec:quanta', async (_, filePath: string) => {
         });
     });
 });
+
+// ─── IPC: AI Code Generation (Gemini) ─────────────────────────────────────────
+import { GoogleGenAI } from '@google/genai';
+
+ipcMain.handle('ai:generate', async (_, prompt: string) => {
+    try {
+        // SECURITY WARNING: Hardcoding API keys is generally discouraged as they can be 
+        // extracted from the compiled Electron app. However, since the user explicitly 
+        // requested not to ask the end-user for a key, you must provide your own key here.
+        const GEMINI_API_KEY = "AIzaSyClSM_94yUXHkbZrq4Rq0e1dKtKML5n7cw";
+
+        if (!GEMINI_API_KEY || GEMINI_API_KEY.length < 10) {
+            return { error: 'Developer Error: No valid Gemini API Key provided in main.ts.' };
+        }
+
+        // Find the bundled syntax.qnt file containing all rules of Quanta
+        const resourcesPath = process.resourcesPath || __dirname;
+        const candidates = [
+            path.join(resourcesPath, 'syntax.qnt'),                 // Prod Mac/Win
+            path.join(__dirname, '..', 'resources', 'syntax.qnt'),  // Dev environment
+        ];
+
+        let syntaxContext = "Quanta is a C-like programming language."; // Fallback
+        for (const c of candidates) {
+            if (fs.existsSync(c)) {
+                syntaxContext = fs.readFileSync(c, 'utf-8');
+                break;
+            }
+        }
+
+        const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+
+        const systemPrompt = `You are an expert AI code generator exclusively for the Quanta programming language. 
+1. DO NOT WRAP CODE IN MARKDOWN BLOCKS (like \`\`\`quanta). Return raw text.
+2. Under no circumstances should you generate code in C, C++, Python, or Rust.
+3. Read the following master syntax file carefully to understand how Quanta operates.
+
+MASTER QUANTA SYNTAX:
+${syntaxContext}
+
+USER REQUEST:
+${prompt}
+
+Output ONLY valid, functional Quanta source code designed to run perfectly.`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-1.5-flash',
+            contents: systemPrompt,
+        });
+
+        // Strip markdown backticks if Gemini ignores the system prompt instructions
+        let rawCode = response.text || '';
+        if (rawCode.startsWith('```')) {
+            const lines = rawCode.split('\n');
+            if (lines.length > 2) {
+                rawCode = lines.slice(1, -1).join('\n');
+            }
+        }
+
+        return { code: rawCode };
+
+    } catch (error: any) {
+        return { error: error.message || 'Unknown error occurred during code generation' };
+    }
+});

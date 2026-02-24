@@ -692,3 +692,112 @@ body,
 .animated {
   animation: fade-in 0.25s ease-out;
 }
+
+/* ─── AI Generation Modal ────────────────────────────────── */
+.ai-btn {
+  color: var(--accent) !important;
+  font-weight: 500;
+}
+
+.ai-btn:hover {
+  background: rgba(198, 120, 221, 0.15) !important;
+}
+
+.ai-modal {
+  width: 90%;
+  max-width: 600px;
+  background: var(--bg-base);
+  border: 1px solid var(--border-lt);
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.ai-body {
+  padding: 24px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ai-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-input-group label {
+  font-size: 13px;
+  color: var(--text-1);
+  font-weight: 500;
+}
+
+.ai-input-group input[type="password"] {
+  background: var(--bg-editor);
+  border: 1px solid var(--border-lt);
+  color: var(--text-2);
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.ai-input-group input[type="password"]:focus {
+  border-color: var(--accent-dim);
+  color: var(--text-1);
+}
+
+.ai-prompt-area {
+  background: var(--bg-editor);
+  border: 1px solid var(--border-lt);
+  color: var(--text-1);
+  padding: 14px;
+  border-radius: var(--radius);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 100px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.ai-prompt-area:focus {
+  border-color: var(--accent);
+}
+
+.ai-hint {
+  font-size: 11px;
+  color: var(--text-3);
+  text-align: right;
+  margin-top: -4px;
+}
+
+.ai-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 30px;
+  background: var(--bg-bar);
+  border-top: 1px solid var(--border);
+}
+
+.ai-footer .btn-run {
+  background: var(--accent);
+  color: #fff;
+}
+
+.ai-footer .btn-run:hover {
+  background: var(--accent-dim);
+}
+
+.ai-footer .btn-run.running {
+  background: var(--bg-hover);
+  color: var(--text-2);
+  cursor: not-allowed;
+}

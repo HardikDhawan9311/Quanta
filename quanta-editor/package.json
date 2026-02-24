@@ -17,6 +17,7 @@
   "homepage": "https://github.com/rohankumarrawat/Quanta",
   "license": "MIT",
   "dependencies": {
+    "@google/genai": "^1.42.0",
     "@monaco-editor/react": "^4.6.0",
     "lucide-react": "^0.344.0",
     "monaco-editor": "^0.55.1",

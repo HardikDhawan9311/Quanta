@@ -36,3 +36,5 @@ print(".replace('fox', 'cat'):", sentence.replace("fox", "cat"));
 
 print("\n--- Testing Method Chaining ---");
 print("'   hello world   '.strip().upper().replace('WORLD', 'QUANTA'):", "   hello world   ".strip().upper().replace("WORLD", "QUANTA"));
+
+

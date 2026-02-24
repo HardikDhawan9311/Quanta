@@ -41,6 +41,13 @@ const IconHelp = () => (
     </svg>
 );
 
+const IconSparkles = () => (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 0l1.928 4.671L14.5 6.5l-4.572 1.829L8 13l-1.928-4.671L1.5 6.5l4.572-1.829z" />
+        <path d="M13.5 11l.964 2.336L16.5 14l-2.036.814L13.5 17l-.964-2.186L10.5 14l2.036-.814z" />
+    </svg>
+);
+
 const DEFAULT_CODE = `print("Welcome to Quanta")`;
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -58,6 +65,11 @@ export default function App() {
     const [showHelp, setShowHelp] = useState<boolean>(false);
     const [helpTab, setHelpTab] = useState<string>('Variables & Types');
     const isDragging = useRef<boolean>(false);
+
+    // AI Generation State
+    const [showAiModal, setShowAiModal] = useState<boolean>(false);
+    const [aiPrompt, setAiPrompt] = useState<string>('');
+    const [isGenerating, setIsGenerating] = useState<boolean>(false);
 
     const monaco = useMonaco();
 
@@ -247,6 +259,50 @@ export default function App() {
         } catch (e: any) { setOutput(`Error saving: ${e.message}`); }
     };
 
+    // ── AI Code Generation ─────────────────────────────────────────────────────
+    const handleGenerateCode = async () => {
+        if (!aiPrompt.trim()) return;
+
+        setIsGenerating(true);
+        setOutput("Generating code with Gemini...");
+
+        try {
+            if (window.electronAPI) {
+                const result = await window.electronAPI.aiGenerate(aiPrompt);
+
+                if (result.error) {
+                    setOutput(`AI Error: ${result.error}`);
+                } else if (result.code) {
+
+                    // Insert at current cursor position or replace everything if empty
+                    const editor = monaco?.editor.getModels()[0];
+                    if (editor) {
+                        const currentText = editor.getValue();
+                        if (currentText === DEFAULT_CODE || currentText.trim() === '') {
+                            setCode(result.code);
+                        } else {
+                            // Insert at the bottom for now if we can't get cursor position
+                            setCode(currentText + '\n\n' + result.code);
+                        }
+                    } else {
+                        setCode(result.code);
+                    }
+
+                    setIsDirty(true);
+                    setOutput("AI Code Generation Complete!");
+                    setShowAiModal(false);
+                    setAiPrompt('');
+                }
+            } else {
+                setOutput("Error: AI Generation requires the desktop app.");
+            }
+        } catch (e: any) {
+            setOutput(`Fatal AI Error: ${e.message}`);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     // ── Run ────────────────────────────────────────────────────────────────────
     const handleRun = async () => {
         if (!window.electronAPI) {
@@ -339,6 +395,9 @@ export default function App() {
                 </div>
                 <div className="toolbar-divider" />
                 <div className="no-drag">
+                    <button className="btn btn-ghost ai-btn" onClick={() => setShowAiModal(true)} title="Generate Code with AI">
+                        <IconSparkles /> Generate
+                    </button>
                     <button className="btn btn-ghost" onClick={() => setShowHelp(true)} title="Syntax Help">
                         <IconHelp /> Help
                     </button>
@@ -551,6 +610,48 @@ export default function App() {
                                     </div>
                                 )}
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── AI Generation Modal ── */}
+            {showAiModal && (
+                <div className="help-overlay" onClick={() => !isGenerating && setShowAiModal(false)}>
+                    <div className="ai-modal" onClick={e => e.stopPropagation()}>
+                        <div className="help-header">
+                            <div>
+                                <h2>✨ Generate Quanta Code</h2>
+                                <p className="help-subtitle">Describe what you want to build, and AI will write it.</p>
+                            </div>
+                            <button className="help-close" onClick={() => !isGenerating && setShowAiModal(false)}>✕</button>
+                        </div>
+                        <div className="ai-body">
+                            <div className="ai-input-group">
+                                <label>What should I write?</label>
+                                <textarea
+                                    className="ai-prompt-area"
+                                    placeholder="e.g. Write a function that calculates the factorial of a number."
+                                    value={aiPrompt}
+                                    onChange={(e) => setAiPrompt(e.target.value)}
+                                    disabled={isGenerating}
+                                    rows={4}
+                                    onKeyDown={(e) => {
+                                        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') handleGenerateCode();
+                                    }}
+                                />
+                                <span className="ai-hint">Pro Tip: Press Ctrl+Enter to generate</span>
+                            </div>
+                        </div>
+                        <div className="ai-footer">
+                            <button className="btn btn-ghost" onClick={() => setShowAiModal(false)} disabled={isGenerating}>Cancel</button>
+                            <button
+                                className={`btn btn-run ${isGenerating ? 'running' : ''}`}
+                                onClick={handleGenerateCode}
+                                disabled={isGenerating || !aiPrompt.trim()}
+                            >
+                                <IconSparkles /> {isGenerating ? 'Generating...' : 'Generate Code'}
+                            </button>
                         </div>
                     </div>
                 </div>
