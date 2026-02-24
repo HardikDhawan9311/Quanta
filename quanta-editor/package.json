@@ -4,7 +4,7 @@
   "description": "A lightweight IDE for the Quanta programming language.",
   "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "concurrently -k \"vite\" \"npm run electron:mon\"",
+    "dev": "npm run electron:build && concurrently -k \"vite\" \"npm run electron:mon\"",
     "build": "tsc && vite build && npm run electron:build",
     "electron:build": "tsc -p electron/tsconfig.json",
     "electron:mon": "wait-on tcp:5173 && cross-env NODE_ENV=development electronmon .",
