@@ -433,13 +433,28 @@ export default function App() {
 
     // ── AI Inline Suggest (Copilot-style via Monaco) ────────────────────────────
     const LEETCODE_TO_QUANTA_TYPE: Record<string, string> = {
-        'integer': 'int', 'int': 'int', 'long': 'int', 'String': 'str', 'string': 'str',
-        'boolean': 'bool', 'bool': 'bool', 'double': 'float', 'float': 'float',
-        'character': 'str', 'char': 'str',
-        'integer[]': 'list', 'int[]': 'list', 'string[]': 'list',
-        'boolean[]': 'list', 'double[]': 'list', 'float[]': 'list',
-        'List[Integer]': 'list', 'List[String]': 'list', 'List[List[Integer]]': 'list',
-        'TreeNode': 'int', 'ListNode': 'list', 'Node': 'list', 'void': 'void'
+        // Integer types
+        'integer': 'int', 'int': 'int', 'long': 'int', 'long long': 'int',
+        'short': 'int', 'byte': 'int', 'number': 'int',
+        // Float types
+        'double': 'float', 'float': 'float',
+        // String types
+        'String': 'string', 'string': 'string', 'character': 'string', 'char': 'string',
+        // Boolean types
+        'boolean': 'bool', 'bool': 'bool',
+        // Void
+        'void': 'void', 'null': 'void',
+        // Array/List types → Quanta uses `int[]` syntax
+        'integer[]': 'int[]', 'int[]': 'int[]', 'long[]': 'int[]',
+        'string[]': 'string[]', 'String[]': 'string[]',
+        'boolean[]': 'bool[]', 'double[]': 'float[]', 'float[]': 'float[]',
+        'char[]': 'string[]', 'character[]': 'string[]',
+        // Complex / nested types → int[] is the closest Quanta equivalent
+        'List[Integer]': 'int[]', 'List[String]': 'string[]',
+        'List[List[Integer]]': 'int[]', 'List[List[String]]': 'string[]',
+        'List[Boolean]': 'bool[]', 'List[Double]': 'float[]',
+        // Tree / Linked List nodes
+        'TreeNode': 'int[]', 'ListNode': 'int[]', 'Node': 'int[]',
     };
 
     const getLeetcodeReturnType = (problem: any): string => {
