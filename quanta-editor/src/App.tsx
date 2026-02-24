@@ -153,6 +153,8 @@ export default function App() {
             provideInlineCompletions: async (_model: any, position: any) => {
                 const suggestion = pendingSuggestionRef.current;
                 if (!suggestion) return { items: [] };
+                // Clear immediately so it only shows once
+                pendingSuggestionRef.current = null;
                 return {
                     items: [{
                         insertText: suggestion,
