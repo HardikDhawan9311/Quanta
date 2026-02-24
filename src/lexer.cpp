@@ -164,6 +164,8 @@ std::vector<Token> tokenize(std::string source) {
             else if (idStr == "startswith") type = TOK_STARTSWITH;
             else if (idStr == "endswith") type = TOK_ENDSWITH;
             else if (idStr == "replace") type = TOK_REPLACE;
+            else if (idStr == "try") type = TOK_TRY;
+            else if (idStr == "catch") type = TOK_CATCH;
             else if (idStr == "in") type = TOK_IN;
             
             

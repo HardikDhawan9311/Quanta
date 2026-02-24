@@ -58,6 +58,8 @@ enum TokenType {
     TOK_CAPITALIZE = -39,
     TOK_TITLE = -40,
     TOK_ISALPHA = -41,
+    TOK_TRY = -51,
+    TOK_CATCH = -52,
     TOK_ISDIGIT = -42,
     TOK_ISSPACE = -43,
     TOK_ISALNUM = -44,
@@ -279,6 +281,17 @@ public:
     StringIndexAST(std::unique_ptr<ASTNode> base, std::vector<std::unique_ptr<ASTNode>> indices)
         : BaseExpr(std::move(base)), Indices(std::move(indices)) {}
 
+    llvm::Value *codegen() override;
+};
+
+// --- TRY / CATCH AST (Exception Handling) ---
+class TryCatchAST : public ASTNode {
+    std::vector<std::unique_ptr<ASTNode>> TryBody;
+    std::string CatchVar;
+    std::vector<std::unique_ptr<ASTNode>> CatchBody;
+public:
+    TryCatchAST(std::vector<std::unique_ptr<ASTNode>> tryBody, std::string catchVar, std::vector<std::unique_ptr<ASTNode>> catchBody)
+        : TryBody(std::move(tryBody)), CatchVar(std::move(catchVar)), CatchBody(std::move(catchBody)) {}
     llvm::Value *codegen() override;
 };
 

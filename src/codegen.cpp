@@ -42,6 +42,11 @@ static std::map<std::string, llvm::Value*> StringPool;
 
 // --- AUTO-FREE MEMORY TRACKER ---
 static std::map<llvm::Function*, std::vector<llvm::AllocaInst*>> AutoFreeMap;
+// --- EXCEPTION SYSTEM GLOBALS ---
+#include <stack>
+static std::stack<llvm::BasicBlock*> CatchStack;
+static llvm::GlobalVariable* QuantaErrorMsg = nullptr;
+static llvm::GlobalVariable* RecursionDepth = nullptr;
 void trackForAutoFree(llvm::Value *HeapPtr) {
     // 1. Go to the very top of the function (Entry Block)
     llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
@@ -63,6 +68,42 @@ void trackForAutoFree(llvm::Value *HeapPtr) {
 // Global Function Registry
 // std::map<std::string, FunctionInfo> FunctionRegistry;
 extern std::map<std::string, FunctionInfo> FunctionRegistry;
+
+// --- EXCEPTION SYSTEM HELPERS ---
+llvm::Function* getQuantaPanicFunc() {
+    llvm::Function *PanicFn = TheModule->getFunction("quanta_panic");
+    if (!PanicFn) {
+        llvm::FunctionType *FT = llvm::FunctionType::get(Builder->getVoidTy(), {Builder->getPtrTy()}, false);
+        PanicFn = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, "quanta_panic", TheModule.get());
+    }
+    return PanicFn;
+}
+
+// Ensure getPooledString is defined above this so we can call it.
+// Forward Declaration:
+llvm::Value* getPooledString(const std::string& str, const std::string& label);
+
+void triggerError(const std::string& errorMsg) {
+    llvm::Value* ErrStr = getPooledString(errorMsg, "err_str");
+    
+    if (!QuantaErrorMsg) {
+        QuantaErrorMsg = new llvm::GlobalVariable(
+            *TheModule, Builder->getPtrTy(), false, 
+            llvm::GlobalValue::InternalLinkage, 
+            llvm::ConstantPointerNull::get(Builder->getPtrTy()), 
+            "_quanta_error_msg"
+        );
+    }
+    Builder->CreateStore(ErrStr, QuantaErrorMsg);
+
+    if (CatchStack.empty()) {
+        Builder->CreateCall(getQuantaPanicFunc(), {ErrStr});
+        Builder->CreateUnreachable(); // Terminate LLVM basic block
+    } else {
+        llvm::BasicBlock* CatchBB = CatchStack.top();
+        Builder->CreateBr(CatchBB);
+    }
+}
 // ----------------------
 llvm::Value* getPooledString(const std::string& str, const std::string& label = "str_pool") {
     if (StringPool.find(str) == StringPool.end()) {
@@ -339,6 +380,31 @@ llvm::Function *FunctionAST::codegen() {
 
         Idx++;
     }
+
+    // --- Smart Guard: Recursion Depth (Push) ---
+    if (!RecursionDepth) {
+        RecursionDepth = new llvm::GlobalVariable(
+            *TheModule, Builder->getInt32Ty(), false, 
+            llvm::GlobalValue::InternalLinkage, 
+            llvm::ConstantInt::get(Builder->getInt32Ty(), 0), 
+            "_quanta_recursion_depth"
+        );
+    }
+    llvm::Value *CurDepth = Builder->CreateLoad(Builder->getInt32Ty(), RecursionDepth, "cur_depth");
+    llvm::Value *NextDepth = Builder->CreateAdd(CurDepth, llvm::ConstantInt::get(Builder->getInt32Ty(), 1), "next_depth");
+    Builder->CreateStore(NextDepth, RecursionDepth);
+
+    llvm::BasicBlock *StackErrBB = llvm::BasicBlock::Create(*TheContext, "stack_err", F);
+    llvm::BasicBlock *StackOkBB = llvm::BasicBlock::Create(*TheContext, "stack_ok");
+
+    llvm::Value *IsTooDeep = Builder->CreateICmpSGT(NextDepth, llvm::ConstantInt::get(Builder->getInt32Ty(), 1000));
+    Builder->CreateCondBr(IsTooDeep, StackErrBB, StackOkBB);
+
+    Builder->SetInsertPoint(StackErrBB);
+    triggerError("Stack Error: Maximum recursion depth exceeded");
+
+    F->insert(F->end(), StackOkBB);
+    Builder->SetInsertPoint(StackOkBB);
 AutoFreeMap.clear();
     // 7. Generate Body
     for (auto &node : Body) {
@@ -355,6 +421,14 @@ AutoFreeMap.clear();
         llvm::Value *PtrToFree = Builder->CreateLoad(Builder->getPtrTy(), Tracker);
         Builder->CreateCall(getFreeFunc(), {PtrToFree});
     }
+
+        // --- Smart Guard: Recursion Depth (Pop for Implicit Return) ---
+        if (RecursionDepth) {
+            llvm::Value *CurDepthRet = Builder->CreateLoad(Builder->getInt32Ty(), RecursionDepth);
+            llvm::Value *PrevDepth = Builder->CreateSub(CurDepthRet, llvm::ConstantInt::get(Builder->getInt32Ty(), 1));
+            Builder->CreateStore(PrevDepth, RecursionDepth);
+        }
+
         if (RetTy->isVoidTy()) {
             Builder->CreateRetVoid();
         } else {
@@ -383,6 +457,13 @@ llvm::Value *ReturnAST::codegen() {
     llvm::Type *ActualTy = RetVal->getType();
 
     llvm::Value *FinalRetVal = nullptr;
+
+    // --- Smart Guard: Recursion Depth (Pop for Explicit Return) ---
+    if (RecursionDepth) {
+        llvm::Value *CurDepthRet = Builder->CreateLoad(Builder->getInt32Ty(), RecursionDepth);
+        llvm::Value *PrevDepth = Builder->CreateSub(CurDepthRet, llvm::ConstantInt::get(Builder->getInt32Ty(), 1));
+        Builder->CreateStore(PrevDepth, RecursionDepth);
+    }
 
     // --- CONVERSION LOGIC ---
 
@@ -500,7 +581,26 @@ llvm::Value *VariableAST::codegen() {
     if (info.Type->isArrayTy() || info.Type->isStructTy()) {
         return info.Alloca; // Arrays and Lists shouldn't be loaded into registers by value
     }
-    return Builder->CreateLoad(info.Type, info.Alloca, Name.c_str());
+
+    llvm::Value *LoadedVal = Builder->CreateLoad(info.Type, info.Alloca, Name.c_str());
+
+    // Smart Guard: Null Pointer Check for Strings/Objects
+    if (info.Type->isPointerTy()) {
+        llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
+        llvm::BasicBlock *NullBB = llvm::BasicBlock::Create(*TheContext, "null_err", TheFunction);
+        llvm::BasicBlock *OkBB = llvm::BasicBlock::Create(*TheContext, "null_ok");
+        
+        llvm::Value *IsNull = Builder->CreateICmpEQ(LoadedVal, llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(info.Type)));
+        Builder->CreateCondBr(IsNull, NullBB, OkBB);
+        
+        Builder->SetInsertPoint(NullBB);
+        triggerError("Reference Error: Attempted to access a null or undefined variable");
+        
+        TheFunction->insert(TheFunction->end(), OkBB);
+        Builder->SetInsertPoint(OkBB);
+    }
+
+    return LoadedVal;
 }
 
 
@@ -738,6 +838,14 @@ llvm::Value *BinaryExprAST::codegen() {
     bool LIsFloat = L->getType()->isFloatingPointTy();
     bool RIsFloat = R->getType()->isFloatingPointTy();
 
+    // Smart Guard: Type Error
+    // If one is a pointer (String) and the other is a number, generate an unconditional panic/catch jump at runtime
+    if ((L->getType()->isPointerTy() && !R->getType()->isPointerTy()) ||
+        (!L->getType()->isPointerTy() && R->getType()->isPointerTy())) {
+        triggerError("Type Error: Incompatible types for operation");
+        return llvm::Constant::getNullValue(L->getType());
+    }
+
     if (LIsFloat && !RIsFloat) {
         R = Builder->CreateSIToFP(R, L->getType(), "cast_int_to_float");
         RIsFloat = true;
@@ -761,14 +869,24 @@ llvm::Value *BinaryExprAST::codegen() {
         case '+': return isFloat ? Builder->CreateFAdd(L, R, "add") : Builder->CreateAdd(L, R, "add");
         case '-': return isFloat ? Builder->CreateFSub(L, R, "sub") : Builder->CreateSub(L, R, "sub");
         case '*': return isFloat ? Builder->CreateFMul(L, R, "mul") : Builder->CreateMul(L, R, "mul");
-        case '/': 
-            if (auto *CR = llvm::dyn_cast<llvm::ConstantFP>(R)) {
-                if (CR->getValueAPF().isZero()) { std::cerr << "Error: Div by Zero\n"; return nullptr; }
-            }
-            if (auto *CI = llvm::dyn_cast<llvm::ConstantInt>(R)) {
-                if (CI->isZero()) { std::cerr << "Error: Div by Zero\n"; return nullptr; }
-            }
+        case '/': {
+            // Smart Guard: Division by Zero
+            llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
+            llvm::BasicBlock *DivZeroBB = llvm::BasicBlock::Create(*TheContext, "div_zero", TheFunction);
+            llvm::BasicBlock *DivOkBB = llvm::BasicBlock::Create(*TheContext, "div_ok");
+            
+            llvm::Value *IsZero = isFloat ? Builder->CreateFCmpOEQ(R, llvm::ConstantFP::get(*TheContext, llvm::APFloat(0.0))) 
+                                          : Builder->CreateICmpEQ(R, llvm::ConstantInt::get(R->getType(), 0));
+            Builder->CreateCondBr(IsZero, DivZeroBB, DivOkBB);
+            
+            Builder->SetInsertPoint(DivZeroBB);
+            triggerError("Arithmetic Error: Division by Zero");
+            
+            TheFunction->insert(TheFunction->end(), DivOkBB);
+            Builder->SetInsertPoint(DivOkBB);
+            
             return isFloat ? Builder->CreateFDiv(L, R, "div") : Builder->CreateSDiv(L, R, "div");
+        }
         case '<':
             L = isFloat ? Builder->CreateFCmpOLT(L, R, "cmp") : Builder->CreateICmpSLT(L, R, "cmp");
             return Builder->CreateZExt(L, llvm::Type::getInt32Ty(*TheContext), "bool_int");
@@ -778,20 +896,29 @@ llvm::Value *BinaryExprAST::codegen() {
         // ... existing cases (+, -, *, /) ...
 
         case '%': {
-        // 1. If both are Integers, use Integer Remainder (SRem)
-        if (L->getType()->isIntegerTy() && R->getType()->isIntegerTy()) {
+            if (L->getType()->isPointerTy() || R->getType()->isPointerTy()) {
+                triggerError("Type Error: Incompatible types for operation");
+                return llvm::Constant::getNullValue(L->getType());
+            }
+
+            // Smart Guard: Division by Zero
+            llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
+            llvm::BasicBlock *DivZeroBB = llvm::BasicBlock::Create(*TheContext, "mod_zero", TheFunction);
+            llvm::BasicBlock *DivOkBB = llvm::BasicBlock::Create(*TheContext, "mod_ok");
+            
+            llvm::Value *IsZero = isFloat ? Builder->CreateFCmpOEQ(R, llvm::ConstantFP::get(*TheContext, llvm::APFloat(0.0))) 
+                                          : Builder->CreateICmpEQ(R, llvm::ConstantInt::get(R->getType(), 0));
+            Builder->CreateCondBr(IsZero, DivZeroBB, DivOkBB);
+            
+            Builder->SetInsertPoint(DivZeroBB);
+            triggerError("Arithmetic Error: Division by Zero");
+            
+            TheFunction->insert(TheFunction->end(), DivOkBB);
+            Builder->SetInsertPoint(DivOkBB);
+
+            if (isFloat) return Builder->CreateFRem(L, R, "remtmp");
             return Builder->CreateSRem(L, R, "remtmp");
         }
-        
-        // 2. If both are Floating Point, use Float Remainder (FRem)
-        if (L->getType()->isFloatingPointTy() && R->getType()->isFloatingPointTy()) {
-            return Builder->CreateFRem(L, R, "remtmp");
-        }
-
-        // 3. Fallback: If types are mixed (e.g. 5 % 2.5), ensure both are floats
-        // (Assuming you have a helper to cast mixed types, or just error out)
-        return LogErrorV("Modulo requires both operands to be Integers or both Doubles.");
-    }
 
    
 
@@ -1083,9 +1210,96 @@ llvm::Value *BlockAST::codegen() {
         if (!LastVal) return nullptr; // Stop if there was an error
     }
     
-    // Return the value of the last statement (or 0.0 if empty)
+// Return the value of the last statement (or 0.0 if empty)
     return LastVal ? LastVal : llvm::Constant::getNullValue(llvm::Type::getDoubleTy(*TheContext));
 }
+
+// --- EXCEPTION HANDLING AST ---
+llvm::Value *TryCatchAST::codegen() {
+    llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
+
+    // 1. Create Basic Blocks
+    llvm::BasicBlock *TryBB = llvm::BasicBlock::Create(*TheContext, "try", TheFunction);
+    llvm::BasicBlock *CatchBB = llvm::BasicBlock::Create(*TheContext, "catch");
+    llvm::BasicBlock *MergeBB = llvm::BasicBlock::Create(*TheContext, "after_try");
+
+    // 2. Jump into the Try block from current
+    Builder->CreateBr(TryBB);
+    Builder->SetInsertPoint(TryBB);
+
+    // 3. Push CatchBB to the global CatchStack BEFORE executing try body
+    CatchStack.push(CatchBB);
+
+    // 4. Generate the Try Body
+    llvm::Value *TryResult = nullptr;
+    for (const auto &Stmt : TryBody) {
+        TryResult = Stmt->codegen();
+        if (!TryResult) return nullptr;
+    }
+
+    // 5. If we reach the end of the Try block without throwing, branch to Merge
+    Builder->CreateBr(MergeBB);
+
+    // 6. Pop CatchBB since we exited the Try block normally
+    if (!CatchStack.empty() && CatchStack.top() == CatchBB) {
+        CatchStack.pop();
+    }
+
+    // 7. Generate the Catch Block
+    TheFunction->insert(TheFunction->end(), CatchBB);
+    Builder->SetInsertPoint(CatchBB);
+
+    // If an error was thrown inside, it jumped here via `triggerError()`.
+    // We must pop the stack now so nested try/catch works correctly.
+    if (!CatchStack.empty() && CatchStack.top() == CatchBB) {
+        CatchStack.pop();
+    }
+
+    // a) Retrieve the error message
+    llvm::Value* ErrMsg = Builder->CreateLoad(Builder->getPtrTy(), QuantaErrorMsg, "err_msg_ld");
+    
+    // b) Reset the global error msg to null (so it's clean for future throws)
+    Builder->CreateStore(llvm::ConstantPointerNull::get(Builder->getPtrTy()), QuantaErrorMsg);
+
+    // c) Bind the catch variable to the error message (as a String)
+    VarInfo OldVar;
+    bool hasOldVar = false;
+    if (NamedValues.find(CatchVar) != NamedValues.end()) {
+        OldVar = NamedValues[CatchVar];
+        hasOldVar = true;
+    }
+
+    VarInfo NewVar;
+    NewVar.Type = Builder->getPtrTy();
+    NewVar.TypeName = "string";
+    
+    // Allocate local var for the exception string
+    llvm::AllocaInst *Alloca = Builder->CreateAlloca(NewVar.Type, nullptr, CatchVar.c_str());
+    Builder->CreateStore(ErrMsg, Alloca);
+    NewVar.Alloca = Alloca;
+    NamedValues[CatchVar] = NewVar;
+
+    // d) Generate Catch Body
+    llvm::Value *CatchResult = nullptr;
+    for (const auto &Stmt : CatchBody) {
+        CatchResult = Stmt->codegen();
+        if (!CatchResult) return nullptr;
+    }
+
+    // Restore overshadowed variable
+    if (hasOldVar) NamedValues[CatchVar] = OldVar;
+    else NamedValues.erase(CatchVar);
+
+    // e) Jump to MergeBB
+    Builder->CreateBr(MergeBB);
+
+    // 8. Continue from MergeBB
+    TheFunction->insert(TheFunction->end(), MergeBB);
+    Builder->SetInsertPoint(MergeBB);
+
+    return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(*TheContext));
+}
+
 
 
 // --- 8. SAVE TO FILE ---
@@ -1286,7 +1500,11 @@ llvm::Value *CallAST::codegen() {
     }
 
     // 5. Generate Call
-    return Builder->CreateCall(CalleeF, FinalArgs, "calltmp");
+    if (CalleeF->getReturnType()->isVoidTy()) {
+        return Builder->CreateCall(CalleeF, FinalArgs);
+    } else {
+        return Builder->CreateCall(CalleeF, FinalArgs, "calltmp");
+    }
 }
 
 // Legacy Strings have been migrated to OOP logic
@@ -1304,9 +1522,32 @@ llvm::Value *StringIndexAST::codegen() {
                     // Fixed Array (Stack) - N-dimensional Support
                     std::vector<llvm::Value*> IdxList;
                     IdxList.push_back(llvm::ConstantInt::get(Builder->getInt32Ty(), 0));
+                    llvm::Type *CurrentArrayTy = info.Type;
                     for (auto &idxAST : Indices) {
                         llvm::Value *IdxVal = idxAST->codegen();
                         if (!IdxVal) return nullptr;
+
+                        // Smart Guard: Fixed Array Bounds
+                        if (auto *AT = llvm::dyn_cast<llvm::ArrayType>(CurrentArrayTy)) {
+                            llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
+                            llvm::BasicBlock *OobBB = llvm::BasicBlock::Create(*TheContext, "oob", TheFunction);
+                            llvm::BasicBlock *OkBB = llvm::BasicBlock::Create(*TheContext, "idx_ok");
+
+                            llvm::Value *Length = llvm::ConstantInt::get(IdxVal->getType(), AT->getNumElements());
+                            llvm::Value *IsNeg = Builder->CreateICmpSLT(IdxVal, llvm::ConstantInt::get(IdxVal->getType(), 0));
+                            llvm::Value *IsTooBig = Builder->CreateICmpSGE(IdxVal, Length);
+                            llvm::Value *IsOob = Builder->CreateOr(IsNeg, IsTooBig, "is_oob");
+
+                            Builder->CreateCondBr(IsOob, OobBB, OkBB);
+
+                            Builder->SetInsertPoint(OobBB);
+                            triggerError("Index Error: Array index out of bounds");
+
+                            TheFunction->insert(TheFunction->end(), OkBB);
+                            Builder->SetInsertPoint(OkBB);
+                            CurrentArrayTy = AT->getElementType();
+                        }
+
                         IdxList.push_back(IdxVal);
                     }
                     llvm::Value *ElementPtr = Builder->CreateInBoundsGEP(info.Type, info.Alloca, IdxList);
@@ -1326,12 +1567,34 @@ llvm::Value *StringIndexAST::codegen() {
                     llvm::Value *IdxVal = Indices[0]->codegen();
                     if (!IdxVal) return nullptr;
 
-                    llvm::Value *PtrField = Builder->CreateStructGEP(info.Type, info.Alloca, 0);
+                    // Read length field (assume struct: { length, capacity, ... })
+                    llvm::Value *LenFieldPtr = Builder->CreateStructGEP(info.Type, info.Alloca, 0);
+                    llvm::Value *ListLength = Builder->CreateLoad(Builder->getInt32Ty(), LenFieldPtr, "list_len");
+                    
+                    // Smart Guard: Dynamic List Bounds Check
+                    llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
+                    llvm::BasicBlock *OobBB = llvm::BasicBlock::Create(*TheContext, "oob_list", TheFunction);
+                    llvm::BasicBlock *OkBB = llvm::BasicBlock::Create(*TheContext, "idx_list_ok");
+
+                    llvm::Value *Idx32 = Builder->CreateIntCast(IdxVal, Builder->getInt32Ty(), true, "idx32");
+                    llvm::Value *IsNeg = Builder->CreateICmpSLT(Idx32, llvm::ConstantInt::get(Builder->getInt32Ty(), 0));
+                    llvm::Value *IsTooBig = Builder->CreateICmpSGE(Idx32, ListLength);
+                    llvm::Value *IsOob = Builder->CreateOr(IsNeg, IsTooBig, "is_oob");
+
+                    Builder->CreateCondBr(IsOob, OobBB, OkBB);
+
+                    Builder->SetInsertPoint(OobBB);
+                    triggerError("Index Error: Array index out of bounds");
+
+                    TheFunction->insert(TheFunction->end(), OkBB);
+                    Builder->SetInsertPoint(OkBB);
+
+                    llvm::Value *PtrField = Builder->CreateStructGEP(info.Type, info.Alloca, 3); // 3 is data ptr
                     llvm::Value *BufferPtr = Builder->CreateLoad(Builder->getPtrTy(), PtrField);
                     
                     // GEP on the dynamically sized buffer
-                    llvm::Value *ElementPtr = Builder->CreateGEP(info.ElementType, BufferPtr, IdxVal);
-                    return Builder->CreateLoad(info.ElementType, ElementPtr, "list_read");
+                    llvm::Value *ListElementPtr = Builder->CreateGEP(info.ElementType, BufferPtr, IdxVal);
+                    return Builder->CreateLoad(info.ElementType, ListElementPtr, "list_read");
                 }
             }
         }
@@ -1350,8 +1613,26 @@ llvm::Value *StringIndexAST::codegen() {
     /* Negative index: -1 = last char, use index + len */
     llvm::Value *Len64 = Builder->CreateCall(getStrlenFunc(), {Base}, "idx_len");
     llvm::Value *Zero64 = llvm::ConstantInt::get(Builder->getInt64Ty(), 0);
-    llvm::Value *IsNeg = Builder->CreateICmpSLT(Idx64, Zero64, "idx_neg");
-    llvm::Value *Adjusted64 = Builder->CreateSelect(IsNeg, Builder->CreateAdd(Idx64, Len64, "idx_adj"), Idx64, "idx_final");
+    llvm::Value *IsNegNative = Builder->CreateICmpSLT(Idx64, Zero64, "idx_neg_native");
+    llvm::Value *Adjusted64 = Builder->CreateSelect(IsNegNative, Builder->CreateAdd(Idx64, Len64, "idx_adj"), Idx64, "idx_final");
+
+    // Smart Guard: String Bounds Check
+    llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
+    llvm::BasicBlock *OobBB = llvm::BasicBlock::Create(*TheContext, "oob_str", TheFunction);
+    llvm::BasicBlock *OkBB = llvm::BasicBlock::Create(*TheContext, "idx_str_ok");
+
+    llvm::Value *IsNeg = Builder->CreateICmpSLT(Adjusted64, Zero64);
+    llvm::Value *IsTooBig = Builder->CreateICmpSGE(Adjusted64, Len64);
+    llvm::Value *IsOob = Builder->CreateOr(IsNeg, IsTooBig, "is_oob");
+
+    Builder->CreateCondBr(IsOob, OobBB, OkBB);
+
+    Builder->SetInsertPoint(OobBB);
+    triggerError("Index Error: Array index out of bounds");
+
+    TheFunction->insert(TheFunction->end(), OkBB);
+    Builder->SetInsertPoint(OkBB);
+
     llvm::Value *CharAddr = Builder->CreateGEP(Builder->getInt8Ty(), Base, Adjusted64, "char_addr");
     return Builder->CreateLoad(Builder->getInt8Ty(), CharAddr, "char_val");
 }

@@ -262,6 +262,32 @@ std::unique_ptr<ASTNode> parseLoop() {
 }
 
 std::unique_ptr<ASTNode> parseExpression();
+// --- EXCEPTION HANDLING PARSER ---
+std::unique_ptr<ASTNode> parseTryCatch() {
+    advance(); // Eat 'try'
+
+    if (getTok().value != "{") return LogError("Expected '{' after 'try'");
+    auto tryBody = parseBlock();
+
+    if (getTok().type != TOK_CATCH) return LogError("Expected 'catch' after try block");
+    advance(); // Eat 'catch'
+
+    if (getTok().value != "(") return LogError("Expected '(' after 'catch'");
+    advance(); // Eat '('
+
+    if (getTok().type != TOK_IDENTIFIER) return LogError("Expected variable name for catch exception");
+    std::string catchVar = getTok().value;
+    advance(); // Eat identifier
+
+    if (getTok().value != ")") return LogError("Expected ')' after catch variable");
+    advance(); // Eat ')'
+
+    if (getTok().value != "{") return LogError("Expected '{' after catch clause");
+    auto catchBody = parseBlock();
+
+    return std::make_unique<TryCatchAST>(std::move(tryBody), catchVar, std::move(catchBody));
+}
+
 // --- 1. PRIMARY PARSER ---
 std::unique_ptr<ASTNode> parsePrimary() {
     Token t = getTok();
@@ -343,6 +369,11 @@ std::unique_ptr<ASTNode> parsePrimary() {
     // --- 7. LOOPS ---
     if (t.type == TOK_LOOP) {
         return parseLoop();
+    }
+
+    // --- EXCEPTION HANDLING ---
+    if (t.type == TOK_TRY) {
+        return parseTryCatch();
     }
 
     // --- 8. TYPE / BYTESIZE ---

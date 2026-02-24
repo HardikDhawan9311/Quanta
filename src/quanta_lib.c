@@ -1,6 +1,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <stdio.h>
+
+void quanta_panic(const char* msg) {
+    fprintf(stderr, "\n[Quanta Runtime Panic]\n%s\n", msg);
+    exit(1);
+}
 
 char* quanta_upper(const char* str) {
     int len = strlen(str);

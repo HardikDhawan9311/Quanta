@@ -829,7 +829,7 @@ export default function App() {
                         <div className="help-body">
                             {/* ── Sidebar ── */}
                             <div className="help-sidebar">
-                                {['Variables & Types', 'Arrays & Lists', '2D Matrix Arrays', 'Functions & Defaults', 'Control Flow', 'Loops', 'String Methods', 'String Validation', 'Comments'].map(tab => (
+                                {['Variables & Types', 'Arrays & Lists', '2D Matrix Arrays', 'Functions & Defaults', 'Control Flow', 'Loops', 'Exception Handling', 'String Methods', 'String Validation', 'Comments'].map(tab => (
                                     <button
                                         key={tab}
                                         className={`help-tab ${helpTab === tab ? 'active' : ''}`}
@@ -911,6 +911,14 @@ export default function App() {
                                         <h3>Comments</h3>
                                         <p>Add notes unheeded by the compiler.</p>
                                         <pre><code>@ Single line comment{'\n\n'}'''{'\n'}Multi-line block comment{'\n'}for longer explanations{'\n'}'''</code></pre>
+                                    </div>
+                                )}
+
+                                {helpTab === 'Exception Handling' && (
+                                    <div className="help-section animated">
+                                        <h3>Exception Handling</h3>
+                                        <p>Use try/catch to handle unexpected runtime errors. Smart Guards automatically catch errors.</p>
+                                        <pre><code>try {'{\n'}  int x = 10 / 0;{'\n'}{'} '}catch (e) {'{\n'}  print(e); @ Prints: Arithmetic Error...{'\n'}{'}'}{'\n\n'}@ Auto Guards: \n@ - Arithmetic Error\n@ - Type Error\n@ - Index Error\n@ - Reference Error\n@ - Stack Error</code></pre>
                                     </div>
                                 )}
                             </div>
