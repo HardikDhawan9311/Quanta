@@ -182,7 +182,7 @@ ${prompt}
 Output ONLY valid, functional Quanta source code designed to run perfectly.`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-1.5-flash',
+            model: 'gemini-2.5-flash',
             contents: systemPrompt,
         });
 
