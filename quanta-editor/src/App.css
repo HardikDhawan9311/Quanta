@@ -444,6 +444,54 @@ body,
   cursor: not-allowed;
 }
 
+/* ── Floating AI Suggest Button (Copilot Style) ── */
+.ai-suggest-fab {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 100;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #c678dd, #8a4fff);
+  border: none;
+  color: #fff;
+  font-size: 17px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(198, 120, 221, 0.5);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.ai-suggest-fab:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 24px rgba(198, 120, 221, 0.7);
+}
+
+.ai-suggest-fab:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.ai-suggest-fab.loading {
+  animation: ai-pulse 1s ease-in-out infinite;
+}
+
+@keyframes ai-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 4px 16px rgba(198, 120, 221, 0.5);
+  }
+
+  50% {
+    box-shadow: 0 6px 32px rgba(198, 120, 221, 0.9);
+  }
+}
+
 /* ─── Tab Bar ────────────────────────────────────────────── */
 .tab-bar {
   display: flex;

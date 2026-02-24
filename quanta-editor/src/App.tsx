@@ -72,6 +72,9 @@ export default function App() {
     const [showHelp, setShowHelp] = useState<boolean>(false);
     const [helpTab, setHelpTab] = useState<string>('Variables & Types');
     const isDragging = useRef<boolean>(false);
+    const editorRef = useRef<any>(null);
+    const pendingSuggestionRef = useRef<string | null>(null);
+    const [isAiSuggestLoading, setIsAiSuggestLoading] = useState<boolean>(false);
 
     // AI Generation State
     const [showAiModal, setShowAiModal] = useState<boolean>(false);
@@ -144,6 +147,26 @@ export default function App() {
     useEffect(() => {
         if (!monaco) return;
         monaco.languages.register({ id: 'quanta' });
+
+        // ── AI Inline Completions Provider (VS Code Copilot Style) ────────────
+        monaco.languages.registerInlineCompletionsProvider('quanta', {
+            provideInlineCompletions: async (_model: any, position: any) => {
+                const suggestion = pendingSuggestionRef.current;
+                if (!suggestion) return { items: [] };
+                return {
+                    items: [{
+                        insertText: suggestion,
+                        range: {
+                            startLineNumber: position.lineNumber,
+                            startColumn: position.column,
+                            endLineNumber: position.lineNumber,
+                            endColumn: position.column,
+                        }
+                    }],
+                    enableForwardStability: true
+                };
+            }
+        } as any);
 
         // ── Language Configuration (Auto-Closing Brackets) ───────────────────
         monaco.languages.setLanguageConfiguration('quanta', {
@@ -408,7 +431,60 @@ export default function App() {
         finally { setIsCompiling(false); }
     };
 
-    // ── Ctrl+S shortcut ────────────────────────────────────────────────────────
+    // ── AI Inline Suggest (Copilot-style via Monaco) ────────────────────────────
+    const LEETCODE_TO_QUANTA_TYPE: Record<string, string> = {
+        'integer': 'int', 'int': 'int', 'long': 'int', 'String': 'str', 'string': 'str',
+        'boolean': 'bool', 'bool': 'bool', 'double': 'float', 'float': 'float',
+        'character': 'str', 'char': 'str',
+        'integer[]': 'list', 'int[]': 'list', 'string[]': 'list',
+        'boolean[]': 'list', 'double[]': 'list', 'float[]': 'list',
+        'List[Integer]': 'list', 'List[String]': 'list', 'List[List[Integer]]': 'list',
+        'TreeNode': 'int', 'ListNode': 'list', 'Node': 'list', 'void': 'void'
+    };
+
+    const getLeetcodeReturnType = (problem: any): string => {
+        try {
+            if (!problem?.metaData) return 'datatype';
+            const meta = JSON.parse(problem.metaData);
+            const rawType = meta?.return?.type || '';
+            return LEETCODE_TO_QUANTA_TYPE[rawType] || 'datatype';
+        } catch { return 'datatype'; }
+    };
+
+    const handleAiSuggest = async () => {
+        if (!editorRef.current || !window.electronAPI) {
+            setOutput('AI Suggest requires the Desktop App.');
+            return;
+        }
+        const storedKey = localStorage.getItem('quanta_gemini_key') || apiKey;
+        if (!storedKey) {
+            setOutput('Error: Configure your Gemini API Key first using the Generate button.');
+            return;
+        }
+        setIsAiSuggestLoading(true);
+        const currentCode = editorRef.current.getValue();
+        const problemCtx = practiceProblem
+            ? `You are helping solve this LeetCode problem in the Quanta language: "${practiceProblem.title}" (${practiceProblem.difficulty}).\n`
+            : '';
+        const prompt = `${problemCtx}Here is the current Quanta code:\n\`\`\`\n${currentCode}\n\`\`\`\nSuggest the next 5-15 lines to make progress on this solution. Return ONLY raw Quanta code with NO explanations, markdown, or comment blocks. Continue from exactly where the code left off.`;
+        try {
+            const result = await window.electronAPI.aiGenerate(prompt, storedKey);
+            if (result.error) {
+                setOutput(`AI Suggest Error: ${result.error}`);
+            } else if (result.code) {
+                // Store suggestion and trigger Monaco ghost text
+                pendingSuggestionRef.current = '\n' + result.code;
+                editorRef.current.trigger('', 'editor.action.inlineSuggest.trigger', {});
+                setOutput('💡 AI suggestion ready! Press Tab to accept, Esc to dismiss.');
+            }
+        } catch (e: any) {
+            setOutput(`AI Suggest Fatal Error: ${e.message}`);
+        } finally {
+            setIsAiSuggestLoading(false);
+        }
+    };
+
+
     useEffect(() => {
         const k = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); handleSaveFile(); }
@@ -462,9 +538,10 @@ export default function App() {
                 } else if (result.data) {
                     setPracticeProblem(result.data);
                     setOutput(`Loaded: ${result.data.title}`);
-                    // Pre-fill editor with a starter function based on the title slug
+                    // Pre-fill editor with a starter function using correct Quanta return type
                     const fnName = result.data.titleSlug.replace(/-([a-z])/g, (_: string, g: string) => g.toUpperCase());
-                    setCode(`@ Practice: ${result.data.title}\n@ Difficulty: ${result.data.difficulty}\n\ndatatype ${fnName}() {\n    @ Write your solution here\n    \n}`);
+                    const returnType = getLeetcodeReturnType(result.data);
+                    setCode(`@ Practice: ${result.data.title}\n@ Difficulty: ${result.data.difficulty}\n\n${returnType} ${fnName}() {\n    @ Write your solution here\n    \n}`);
                     setShowSuggestions(false);
                 }
             } else {
@@ -654,10 +731,28 @@ export default function App() {
                                 renderWhitespace: 'selection',
                                 suggestOnTriggerCharacters: true,
                                 quickSuggestions: true,
+                                inlineSuggest: { enabled: true },
                                 snippetSuggestions: 'top',
+                            }}
+                            onMount={(editor) => {
+                                editorRef.current = editor;
+                                // enable inline suggestions so ghost text works
+                                editor.updateOptions({ inlineSuggest: { enabled: true } });
                             }}
                         />
                     </div>
+
+                    {/* Floating AI Suggest Button (visible only in Practice Mode) */}
+                    {isPracticeMode && (
+                        <button
+                            className={`ai-suggest-fab${isAiSuggestLoading ? ' loading' : ''}`}
+                            onClick={handleAiSuggest}
+                            disabled={isAiSuggestLoading}
+                            title="AI Suggest next lines (Tab to accept)"
+                        >
+                            {isAiSuggestLoading ? '⏳' : '✨'}
+                        </button>
+                    )}
 
                     {/* Resizer */}
                     <div

@@ -218,6 +218,7 @@ ipcMain.handle('api:fetchLeetcode', async (_, titleSlug: string) => {
                     }
                     hints
                     sampleTestCase
+                    metaData
                 }
             }
         `;
