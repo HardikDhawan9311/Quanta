@@ -715,8 +715,14 @@ export default function App() {
                     // Parse expected outputs from HTML content
                     const rawTests = result.data.exampleTestcases ? result.data.exampleTestcases.split('\n') : [];
                     // Parse outputs from the HTML content
-                    const outMatches: any[] = Array.from(result.data.content?.matchAll(/<strong>Output:<\/strong>\s*<[^>]+>([^<]+)/gi) ?? []);
-                    const getExt = (i: number): string => outMatches[i] ? String(outMatches[i][1]).trim() : '?';
+                    // LeetCode HTML: <strong>Output:</strong> 3  (plain text follows strong close tag)
+                    const outMatches: any[] = Array.from(
+                        result.data.content?.matchAll(/Output:<\/strong>\s*(?:<[^>]*>)?([^<\n]+)/gi) ?? []
+                    );
+                    const getExt = (i: number): string => {
+                        const m = outMatches[i];
+                        return m ? String(m[1]).trim().replace(/&quot;/g, '"').replace(/&amp;/g, '&') : '?';
+                    };
                     // Build 3 test cases with real inputs from exampleTestcases
                     const initialTests = [
                         { id: 0, input: rawTests[0] ?? '', expected: getExt(0), status: 'unrun', actual: '' },
