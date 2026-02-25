@@ -136,6 +136,7 @@ export default function App() {
     const [testCaseResults, setTestCaseResults] = useState<any[]>([]);
     const [hasPassedAll, setHasPassedAll] = useState<boolean>(false);
     const [isVerifying, setIsVerifying] = useState<boolean>(false);
+    const [activeTcTab, setActiveTcTab] = useState<number>(0);
 
     // Popular LeetCode problems for autocomplete
     const POPULAR_PROBLEMS = [
@@ -713,21 +714,19 @@ export default function App() {
                     // Pre-populate Test Cases tab with pending cases
                     // Parse expected outputs from HTML content
                     const rawTests = result.data.exampleTestcases ? result.data.exampleTestcases.split('\n') : [];
-                    const outputMatches = [...(result.data.content?.matchAll(/Output:?<\/strong>\s*([^<]+)/gi) ?? []
-                    ), (result.data.content?.matchAll(/Output:\s*([^\n<]+)/gi) ?? [])
-                    ].flat();
-                    const getExpected = (idx: number) => {
-                        if (outputMatches[idx]) {
-                            return String(outputMatches[idx][1] || '').trim();
-                        }
-                        return '?';
-                    };
+                    // Parse outputs from the HTML content
+                    const outMatches: any[] = Array.from(result.data.content?.matchAll(/<strong>Output:<\/strong>\s*<[^>]+>([^<]+)/gi) ?? []);
+                    const getExt = (i: number): string => outMatches[i] ? String(outMatches[i][1]).trim() : '?';
+                    // Build 3 test cases with real inputs from exampleTestcases
                     const initialTests = [
-                        { id: 1, input: rawTests[0] || 'See problem description', expected: getExpected(0), status: 'unrun', actual: '' },
-                        { id: 2, input: rawTests[1] || 'See problem description', expected: getExpected(1), status: 'unrun', actual: '' },
-                        { id: 3, input: rawTests[2] || 'See problem description', expected: getExpected(2), status: 'unrun', actual: '' },
-                    ];
-                    setTestCaseResults(initialTests);
+                        { id: 0, input: rawTests[0] ?? '', expected: getExt(0), status: 'unrun', actual: '' },
+                        { id: 1, input: rawTests[1] ?? '', expected: getExt(1), status: 'unrun', actual: '' },
+                        { id: 2, input: rawTests[2] ?? '', expected: getExt(2), status: 'unrun', actual: '' },
+                    ].filter(tc => tc.input !== '');
+                    setTestCaseResults(initialTests.length > 0 ? initialTests : [
+                        { id: 0, input: 'See problem description', expected: '?', status: 'unrun', actual: '' }
+                    ]);
+                    setActiveTcTab(0);
                     setHasPassedAll(false);
                     setTerminalHeight(280);
 
@@ -1048,27 +1047,48 @@ export default function App() {
                                         <div className="test-case-empty">
                                             Press "Run Test Cases" to verify your code against LeetCode examples.
                                         </div>
-                                    ) : (
-                                        testCaseResults.map(tc => (
-                                            <div key={tc.id} className={`test-case-card ${tc.status}`}>
-                                                <div className={`test-case-header ${tc.status}`}>
-                                                    Case {tc.id}: {tc.status === 'unrun' ? 'Ready' : tc.status === 'pending' ? '⏳ Running...' : tc.status === 'passed' ? '✓ Accepted' : '✕ Wrong Answer'}
+                                    ) : (() => {
+                                        const tc = testCaseResults[activeTcTab] || testCaseResults[0];
+                                        return (
+                                            <>
+                                                {/* LeetCode-style Case selector tabs */}
+                                                <div className="tc-selector-tabs">
+                                                    {testCaseResults.map((t, i) => (
+                                                        <button
+                                                            key={i}
+                                                            className={`tc-selector-tab ${activeTcTab === i ? 'active' : ''} ${t.status}`}
+                                                            onClick={() => setActiveTcTab(i)}
+                                                        >
+                                                            {t.status === 'passed' ? '✓ ' : t.status === 'failed' ? '✕ ' : ''}
+                                                            Case {i + 1}
+                                                        </button>
+                                                    ))}
                                                 </div>
-                                                <div className="test-case-body">
-                                                    <label>Input</label>
-                                                    <pre>{tc.input}</pre>
-                                                    <label>Expected Output</label>
-                                                    <pre className="expected">{tc.expected}</pre>
-                                                    {tc.status !== 'pending' && tc.status !== 'unrun' && (
-                                                        <>
-                                                            <label>Actual Output</label>
-                                                            <pre className={tc.status === 'passed' ? 'actual-match' : 'actual-fail'}>{tc.actual}</pre>
-                                                        </>
+                                                {/* Case detail */}
+                                                <div className="tc-detail">
+                                                    <div className="tc-section">
+                                                        <span className="tc-label">Input</span>
+                                                        <div className="tc-value"><code>{tc.input || <em style={{ color: 'var(--text-3)' }}>No input data</em>}</code></div>
+                                                    </div>
+                                                    <div className="tc-section">
+                                                        <span className="tc-label">Expected Output</span>
+                                                        <div className="tc-value tc-expected"><code>{tc.expected}</code></div>
+                                                    </div>
+                                                    {tc.status !== 'unrun' && tc.status !== 'pending' && (
+                                                        <div className="tc-section">
+                                                            <span className="tc-label">Actual Output</span>
+                                                            <div className={`tc-value ${tc.status === 'passed' ? 'tc-pass' : 'tc-fail'}`}><code>{tc.actual}</code></div>
+                                                        </div>
+                                                    )}
+                                                    {tc.status === 'pending' && (
+                                                        <div className="tc-section">
+                                                            <span className="tc-label" style={{ color: 'var(--accent)' }}>⏳ Running...</span>
+                                                        </div>
                                                     )}
                                                 </div>
-                                            </div>
-                                        ))
-                                    )}
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                             )}
                         </div>
