@@ -534,6 +534,15 @@ body,
   align-items: center;
 }
 
+.vs-tab-dirty {
+  width: 8px;
+  height: 8px;
+  background: var(--text-2);
+  border-radius: 50%;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+
 .tab-bar-actions {
   margin-left: auto;
   display: flex;
