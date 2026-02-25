@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Editor, { useMonaco } from '@monaco-editor/react';
-import './App.css';
-
-// ─── Icons ───────────────────────────────────────────────────────────────────
+import { Sidebar } from './components/Sidebar';
+import './components/vscode.css';
+import './App.css';// ─── Icons ───────────────────────────────────────────────────────────────────
 
 const IconNewFile = () => (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
@@ -34,6 +34,23 @@ const IconFile = () => (
     </svg>
 );
 
+// Custom Quanta (.qnt) file icon — quantum atom shape
+const IconQuantaFile = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+        <ellipse cx="12" cy="12" rx="10" ry="4.5" stroke="url(#qnt-g)" strokeWidth="1.4" />
+        <ellipse cx="12" cy="12" rx="10" ry="4.5" stroke="url(#qnt-g)" strokeWidth="1.4" transform="rotate(60 12 12)" />
+        <ellipse cx="12" cy="12" rx="10" ry="4.5" stroke="url(#qnt-g)" strokeWidth="1.4" transform="rotate(120 12 12)" />
+        <circle cx="12" cy="12" r="2.2" fill="url(#qnt-g)" />
+        <defs>
+            <linearGradient id="qnt-g" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#7c3aed" />
+                <stop offset="50%" stopColor="#4f46e5" />
+                <stop offset="100%" stopColor="#06b6d4" />
+            </linearGradient>
+        </defs>
+    </svg>
+);
+
 const IconHelp = () => (
     <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
         <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16Z" />
@@ -60,13 +77,36 @@ const DEFAULT_CODE = `print("Welcome to Quanta")`;
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
-    const [code, setCode] = useState<string>(DEFAULT_CODE);
+    const [projectRoot, setProjectRoot] = useState<string | null>(null);
+    const [projectTree, setProjectTree] = useState<FileNode[]>([]);
+    const [sidebarVisible, setSidebarVisible] = useState<boolean>(true);
+    const [openTabs, setOpenTabs] = useState<OpenFile[]>([{ path: 'untitled', name: 'Untitled.qnt', content: DEFAULT_CODE, isDirty: false }]);
+    const [activeTabPath, setActiveTabPath] = useState<string>('untitled');
+
+    const activeTab = openTabs.find(t => t.path === activeTabPath) || openTabs[0];
+    const code = activeTab?.content || '';
+    const currentFile = activeTab?.path === 'untitled' ? null : activeTab?.path;
+    const fileName = activeTab?.name || 'Untitled.qnt';
+    const isDirty = activeTab?.isDirty || false;
+
+    const setCode = (newContent: string) => {
+        setOpenTabs(tabs => tabs.map(t =>
+            t.path === activeTabPath ? { ...t, content: newContent, isDirty: true } : t
+        ));
+    };
+    const setIsDirty = (dirty: boolean) => {
+        setOpenTabs(tabs => tabs.map(t =>
+            t.path === activeTabPath ? { ...t, isDirty: dirty } : t
+        ));
+    };
+    const setCurrentFile = (path: string | null) => {
+        if (!path) return;
+        setActiveTabPath(path);
+    };
+    const setFileName = (_name: string) => { };
+    const [editorKey, setEditorKey] = useState<number>(0);
     const [output, setOutput] = useState<string>('');
     const [isCompiling, setIsCompiling] = useState<boolean>(false);
-    const [currentFile, setCurrentFile] = useState<string | null>(null);
-    const [fileName, setFileName] = useState<string>('Untitled.qnt');
-    const [isDirty, setIsDirty] = useState<boolean>(false);
-    const [editorKey, setEditorKey] = useState<number>(0);
 
     const [terminalHeight, setTerminalHeight] = useState<number>(210);
     const [showHelp, setShowHelp] = useState<boolean>(false);
@@ -304,30 +344,51 @@ export default function App() {
         if (value !== undefined) { setCode(value); setIsDirty(true); }
     }, []);
 
-    // ── New File ───────────────────────────────────────────────────────────────
-    const handleNewFile = () => {
-        setCode(DEFAULT_CODE);
-        setCurrentFile(null);
-        setFileName('Untitled.qnt');
-        setIsDirty(false);
-        setOutput('');
-        setEditorKey(k => k + 1); // force Monaco to remount with fresh content
+    // ── Open Folder ────────────────────────────────────────────────────────────
+    const handleOpenFolder = async () => {
+        if (!window.electronAPI) return;
+        const root = await window.electronAPI.openDirectory();
+        if (root) {
+            setProjectRoot(root);
+            const tree = await window.electronAPI.readDirectory(root);
+            setProjectTree(tree);
+            setSidebarVisible(true);
+        }
     };
 
-    // ── Open File ──────────────────────────────────────────────────────────────
-    const handleOpenFile = async () => {
-        try {
-            if (window.electronAPI) {
-                const result = await window.electronAPI.openFile();
-                if (result) {
-                    setCode(result.content);
-                    setCurrentFile(result.filePath);
-                    setFileName(result.fileName);
-                    setIsDirty(false);
-                    setOutput('');
-                }
+    const handleOpenFileFromSidebar = async (path: string, name: string) => {
+        if (openTabs.find(t => t.path === path)) {
+            setActiveTabPath(path);
+            return;
+        }
+        if (window.electronAPI) {
+            const content = await window.electronAPI.readFile(path);
+            if (content !== null) {
+                setOpenTabs(prev => [...prev, { path, name, content, isDirty: false }]);
+                setActiveTabPath(path);
             }
-        } catch (e: any) { setOutput(`Error opening file: ${e.message}`); }
+        }
+    };
+
+    const closeTab = (path: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        const newTabs = openTabs.filter(t => t.path !== path);
+        if (newTabs.length === 0) {
+            newTabs.push({ path: 'untitled', name: 'Untitled.qnt', content: DEFAULT_CODE, isDirty: false });
+        }
+        setOpenTabs(newTabs);
+        if (activeTabPath === path) {
+            setActiveTabPath(newTabs[newTabs.length - 1].path);
+        }
+    };
+
+    // ── New File ───────────────────────────────────────────────────────────────
+    const handleNewFile = () => {
+        const path = 'untitled-' + Date.now();
+        setOpenTabs(prev => [...prev, { path, name: 'Untitled.qnt', content: DEFAULT_CODE, isDirty: false }]);
+        setActiveTabPath(path);
+        setOutput('');
+        setEditorKey(k => k + 1);
     };
 
     // ── Save File ──────────────────────────────────────────────────────────────
@@ -341,9 +402,10 @@ export default function App() {
                 } else {
                     const result = await window.electronAPI.saveFileAs(code);
                     if (result) {
-                        setCurrentFile(result.filePath);
-                        setFileName(result.fileName);
-                        setIsDirty(false);
+                        setOpenTabs(tabs => tabs.map(t =>
+                            t.path === activeTabPath ? { ...t, path: result.filePath, name: result.fileName, isDirty: false } : t
+                        ));
+                        setActiveTabPath(result.filePath);
                         setOutput(`Saved: ${result.filePath}`);
                     }
                 }
@@ -505,6 +567,16 @@ export default function App() {
     useEffect(() => {
         const k = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); handleSaveFile(); }
+            // F5 or Cmd+5 / Ctrl+5 to run code
+            if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.key === '5')) {
+                e.preventDefault();
+                handleRun();
+            }
+            // Cmd+B / Ctrl+B to toggle sidebar
+            if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+                e.preventDefault();
+                setSidebarVisible(v => !v);
+            }
         };
         window.addEventListener('keydown', k);
         return () => window.removeEventListener('keydown', k);
@@ -582,51 +654,62 @@ export default function App() {
                     <span className="logo-dot" />
                     <span className="logo-name">Quanta Studio</span>
                 </div>
-                <div className="titlebar-file no-drag">
-                    {isDirty && <span className="dirty-dot">●</span>}
-                    {fileName}
+                <div className="titlebar-center no-drag" style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+                    <div style={{ background: '#2d2d2d', border: '1px solid #3c3c3c', borderRadius: 4, width: 350, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, padding: '4px 8px', color: '#ccc', cursor: 'text' }}>
+                        Quanta Studio
+                    </div>
                 </div>
-                <div className="titlebar-right" />
-            </div>
-
-            {/* ── Toolbar ── */}
-            <div className="toolbar">
-                <div className="toolbar-group no-drag">
-                    <button className="btn btn-ghost" onClick={handleNewFile} title="New File">
-                        <IconNewFile /> New
-                    </button>
-                    <button className="btn btn-ghost" onClick={handleOpenFile} title="Open File (Ctrl+O)">
-                        <IconFolder /> Open
-                    </button>
-                    <button className="btn btn-ghost" onClick={handleSaveFile} title="Save (Ctrl+S)">
-                        <IconSave /> Save
-                    </button>
-                </div>
-                <div className="toolbar-divider" />
-                <div className="no-drag">
-                    <button className={`btn btn-ghost practice-btn ${isPracticeMode ? 'active' : ''}`} onClick={() => setIsPracticeMode(!isPracticeMode)} title="Practice Mode">
-                        <IconTarget /> Practice
-                    </button>
-                    <button className="btn btn-ghost ai-btn" onClick={() => setShowAiModal(true)} title="Generate Code with AI">
-                        <IconSparkles /> Generate
-                    </button>
-                    <button className="btn btn-ghost" onClick={() => setShowHelp(true)} title="Syntax Help">
-                        <IconHelp /> Help
-                    </button>
-                    <button
-                        className={`btn btn-run${isCompiling ? ' running' : ''}`}
-                        onClick={handleRun}
-                        disabled={isCompiling}
-                        title="Run Code"
-                    >
-                        <IconPlay />
-                        {isCompiling ? 'Running…' : 'Run Code'}
-                    </button>
+                <div className="titlebar-right no-drag" style={{ display: 'flex', gap: 10, marginRight: 10 }}>
+                    <div className="vs-activity-icon" onClick={handleSaveFile} style={{ width: 30, height: 30 }} title="Save">
+                        <IconSave />
+                    </div>
                 </div>
             </div>
 
             {/* ── Content ── */}
-            <div className={`content ${isPracticeMode ? 'practice-mode-active' : ''}`}>
+            <div className={`content vs-layout-root ${isPracticeMode ? 'practice-mode-active' : ''}`}>
+
+                {/* Activity Bar */}
+                <div className="vs-activity-bar no-drag">
+                    <div className="vs-activity-actions">
+                        <div
+                            className={`vs-activity-icon ${!isPracticeMode && sidebarVisible ? 'active' : ''}`}
+                            onClick={() => { setIsPracticeMode(false); setSidebarVisible(v => !v); }}
+                            title="Explorer (Ctrl+B)"
+                        >
+                            <IconFile />
+                        </div>
+                        <div className="vs-activity-icon" onClick={handleOpenFolder} title="Open Folder">
+                            <IconFolder />
+                        </div>
+                        <div className="vs-activity-icon" onClick={handleNewFile} title="New File">
+                            <IconNewFile />
+                        </div>
+                        <div className={`vs-activity-icon ${isPracticeMode ? 'active' : ''}`} onClick={() => setIsPracticeMode(!isPracticeMode)} title="Practice Mode">
+                            <IconTarget />
+                        </div>
+                        <div className="vs-activity-icon" onClick={() => setShowAiModal(true)} title="Generate Code">
+                            <IconSparkles />
+                        </div>
+                        <div className="vs-activity-icon" onClick={handleRun} title="Run Code" style={{ color: isCompiling ? '#89d185' : undefined }}>
+                            <IconPlay />
+                        </div>
+                    </div>
+                    <div className="vs-activity-actions">
+                        <div className="vs-activity-icon" onClick={() => setShowHelp(true)} title="Help">
+                            <IconHelp />
+                        </div>
+                    </div>
+                </div>
+
+                {!isPracticeMode && sidebarVisible && (
+                    <Sidebar
+                        projectRoot={projectRoot}
+                        tree={projectTree}
+                        onOpenFile={handleOpenFileFromSidebar}
+                        onOpenFolder={handleOpenFolder}
+                    />
+                )}
 
                 {/* Practice Left Pane (LeetCode Problem) */}
                 {isPracticeMode && (
@@ -702,15 +785,22 @@ export default function App() {
 
                 {/* Main Right Pane (Editor & Terminal) */}
                 <div className="main-pane">
-                    {/* Tab Bar */}
-                    <div className="tab-bar">
-                        <div className="tab active">
-                            <span className="tab-icon"><IconFile /></span>
-                            <span>{isDirty ? '● ' : ''}{fileName}</span>
-                        </div>
-                        <div className="tab-bar-actions no-drag">
-                            <button className="tab-new-btn" onClick={handleNewFile} title="New file">＋</button>
-                        </div>
+                    {/* VS Code Tab Bar */}
+                    <div className="vs-tabs-container no-drag">
+                        {openTabs.map(tab => (
+                            <div
+                                key={tab.path}
+                                className={`vs-tab ${activeTabPath === tab.path ? 'active' : ''}`}
+                                onClick={() => setActiveTabPath(tab.path)}
+                            >
+                                <span className="tab-icon" style={{ marginRight: '5px', display: 'flex', alignItems: 'center' }}>
+                                    {tab.name.endsWith('.qnt') ? <IconQuantaFile /> : <IconFile />}
+                                </span>
+                                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tab.name}</span>
+                                {tab.isDirty && <span className="vs-tab-dirty">●</span>}
+                                <div className="vs-tab-close" onClick={(e) => closeTab(tab.path, e)}>✕</div>
+                            </div>
+                        ))}
                     </div>
 
                     {/* Editor */}

@@ -84,6 +84,71 @@ ipcMain.handle('dialog:openFile', async () => {
     return { filePath, content, fileName: path.basename(filePath) };
 });
 
+// ─── IPC: Open Directory & File System ───────────────────────────────────────
+ipcMain.handle('dialog:openDirectory', async () => {
+    if (!mainWindow) return null;
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory']
+    });
+    if (canceled || filePaths.length === 0) return null;
+    return filePaths[0];
+});
+
+interface FileNode {
+    name: string;
+    path: string;
+    isDirectory: boolean;
+    children?: FileNode[];
+}
+
+function buildFileTree(dirPath: string): FileNode[] {
+    const result: FileNode[] = [];
+    try {
+        const items = fs.readdirSync(dirPath);
+        for (const item of items) {
+            if (item === 'node_modules' || item === '.git' || item === '.DS_Store') continue;
+
+            const fullPath = path.join(dirPath, item);
+            const stat = fs.statSync(fullPath);
+            if (stat.isDirectory()) {
+                result.push({
+                    name: item,
+                    path: fullPath,
+                    isDirectory: true,
+                    children: buildFileTree(fullPath)
+                });
+            } else {
+                result.push({
+                    name: item,
+                    path: fullPath,
+                    isDirectory: false
+                });
+            }
+        }
+    } catch (e) {
+        console.error("Error reading dir", e);
+    }
+    result.sort((a, b) => {
+        if (a.isDirectory === b.isDirectory) {
+            return a.name.localeCompare(b.name);
+        }
+        return a.isDirectory ? -1 : 1;
+    });
+    return result;
+}
+
+ipcMain.handle('fs:readDirectory', async (_, dirPath: string) => {
+    return buildFileTree(dirPath);
+});
+
+ipcMain.handle('fs:readFile', async (_, filePath: string) => {
+    try {
+        return fs.readFileSync(filePath, 'utf-8');
+    } catch (e) {
+        return null;
+    }
+});
+
 // ─── IPC: Save File ───────────────────────────────────────────────────────────
 ipcMain.handle('fs:saveFile', async (_, filePath: string, content: string) => {
     fs.writeFileSync(filePath, content, 'utf-8');

@@ -1663,34 +1663,104 @@ llvm::Value *StringSliceAST::codegen() {
 
 llvm::Value *LoopOverStringAST::codegen() {
     llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
-    llvm::Value *StrVal = StringExpr->codegen();
-    if (!StrVal || !StrVal->getType()->isPointerTy()) return LogErrorV("Loop over string requires a string expression.");
-    llvm::Value *Len64 = Builder->CreateCall(getStrlenFunc(), {StrVal}, "str_len");
-    llvm::Value *Len32 = Builder->CreateTrunc(Len64, Builder->getInt32Ty(), "len32");
+
+    // 1. Evaluate the iterable expression
+    llvm::Value *IterableVal = StringExpr->codegen();
+    if (!IterableVal) return nullptr;
+
+    llvm::Type *IterableTy = IterableVal->getType();
+
+    // Determine type information from named variables if possible (for arrays/lists)
+    llvm::Type *ElementTy = Builder->getInt8Ty(); // Default for String
+    llvm::Value *Len32 = nullptr;
+    llvm::Value *BufferPtr = IterableVal;
+    std::string QuantaTypeName = "char";
+
+    // Attempt to extract array/list length dynamically
+    if (auto *VarAst = dynamic_cast<VariableAST*>(StringExpr.get())) {
+        std::string name = VarAst->getName();
+        if (NamedValues.find(name) != NamedValues.end()) {
+            VarInfo &info = NamedValues[name];
+            
+            if (info.Type->isArrayTy()) {
+                // Fixed Array
+                auto *AT = llvm::cast<llvm::ArrayType>(info.Type);
+                ElementTy = AT->getElementType();
+                QuantaTypeName = info.TypeName; // E.g., "int"
+                Len32 = llvm::ConstantInt::get(Builder->getInt32Ty(), AT->getNumElements());
+                
+                // GEP to get pointer to first element of the array
+                BufferPtr = Builder->CreateInBoundsGEP(
+                    info.Type, info.Alloca, 
+                    {llvm::ConstantInt::get(Builder->getInt32Ty(), 0), llvm::ConstantInt::get(Builder->getInt32Ty(), 0)}
+                );
+            } else if (info.Type->isStructTy()) {
+                // Dynamic List (assumes {length, capacity, ...})
+                ElementTy = info.ElementType;
+                QuantaTypeName = info.TypeName;
+                
+                llvm::Value *LenFieldPtr = Builder->CreateStructGEP(info.Type, info.Alloca, 0);
+                Len32 = Builder->CreateLoad(Builder->getInt32Ty(), LenFieldPtr, "list_len");
+                
+                llvm::Value *PtrField = Builder->CreateStructGEP(info.Type, info.Alloca, 2);
+                BufferPtr = Builder->CreateLoad(Builder->getPtrTy(), PtrField);
+            }
+        }
+    }
+
+    // Default string fallback if length isn't calculated yet
+    if (!Len32) {
+        if (!IterableTy->isPointerTy()) return LogErrorV("Loop iterable must be an array, list, or string.");
+        llvm::Value *Len64 = Builder->CreateCall(getStrlenFunc(), {IterableVal}, "str_len");
+        Len32 = Builder->CreateTrunc(Len64, Builder->getInt32Ty(), "len32");
+        QuantaTypeName = "char";
+    }
 
     llvm::BasicBlock *CondBB = llvm::BasicBlock::Create(*TheContext, "loop_str_cond", TheFunction);
     llvm::BasicBlock *BodyBB = llvm::BasicBlock::Create(*TheContext, "loop_str_body");
     llvm::BasicBlock *AfterBB = llvm::BasicBlock::Create(*TheContext, "loop_str_after");
 
+    // 1. Setup loop counter (hidden)
     llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(), TheFunction->getEntryBlock().begin());
-    llvm::AllocaInst *VarAlloca = TmpB.CreateAlloca(Builder->getInt32Ty(), nullptr, VarName);
-    TmpB.CreateStore(llvm::ConstantInt::get(Builder->getInt32Ty(), 0), VarAlloca);
+    llvm::AllocaInst *IndexAlloca = TmpB.CreateAlloca(Builder->getInt32Ty(), nullptr, "loop_idx");
+    TmpB.CreateStore(llvm::ConstantInt::get(Builder->getInt32Ty(), 0), IndexAlloca);
 
+    // 2. Setup user variable (which will hold the element)
+    llvm::AllocaInst *VarAlloca = TmpB.CreateAlloca(ElementTy, nullptr, VarName);
     Builder->CreateBr(CondBB);
 
+    // --- CONDITION BLOCK ---
     Builder->SetInsertPoint(CondBB);
-    llvm::Value *Cur = Builder->CreateLoad(Builder->getInt32Ty(), VarAlloca, "cur_i");
-    llvm::Value *CondV = Builder->CreateICmpSLT(Cur, Len32, "loop_str_cmp");
+    llvm::Value *CurIdx = Builder->CreateLoad(Builder->getInt32Ty(), IndexAlloca, "cur_i");
+    llvm::Value *CondV = Builder->CreateICmpSLT(CurIdx, Len32, "loop_str_cmp");
     Builder->CreateCondBr(CondV, BodyBB, AfterBB);
 
+    // --- BODY BLOCK ---
     TheFunction->insert(TheFunction->end(), BodyBB);
     Builder->SetInsertPoint(BodyBB);
-    NamedValues[VarName] = VarInfo{VarAlloca, Builder->getInt32Ty(), "int", nullptr};
+
+    // Load the element at CurIdx
+    llvm::Value *CurIdx64 = Builder->CreateZExt(CurIdx, Builder->getInt64Ty());
+    llvm::Value *ElementAddr = Builder->CreateGEP(ElementTy, BufferPtr, CurIdx64, "elem_addr");
+    
+    // Arrays/Lists might already return a value, Strings return int8.
+    llvm::Value *ElementVal = Builder->CreateLoad(ElementTy, ElementAddr, "elem_val");
+
+    // Store the element into the user's loop variable
+    Builder->CreateStore(ElementVal, VarAlloca);
+
+    // Register the user variable so the loop body can see it
+    NamedValues[VarName] = VarInfo{VarAlloca, ElementTy, QuantaTypeName, nullptr};
+
+    // Execute the loop body
     if (!Body->codegen()) return nullptr;
-    llvm::Value *Next = Builder->CreateAdd(Cur, llvm::ConstantInt::get(Builder->getInt32Ty(), 1), "next_i");
-    Builder->CreateStore(Next, VarAlloca);
+
+    // Increment hidden index
+    llvm::Value *NextIdx = Builder->CreateAdd(CurIdx, llvm::ConstantInt::get(Builder->getInt32Ty(), 1), "next_i");
+    Builder->CreateStore(NextIdx, IndexAlloca);
     Builder->CreateBr(CondBB);
 
+    // --- AFTER BLOCK ---
     TheFunction->insert(TheFunction->end(), AfterBB);
     Builder->SetInsertPoint(AfterBB);
     return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(*TheContext));
