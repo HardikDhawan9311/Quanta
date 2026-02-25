@@ -1050,3 +1050,177 @@ body,
   color: var(--text-2);
   cursor: not-allowed;
 }
+
+/* ─── Terminal Bottom Tab Bar ────────────────────────────── */
+.terminal-tabs {
+  display: flex;
+  align-items: stretch;
+}
+
+.term-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 18px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.term-tab:hover {
+  color: var(--text-1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.term-tab.active {
+  color: var(--text-1);
+  border-bottom-color: var(--accent);
+  background: var(--bg-editor);
+}
+
+.terminal-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  margin-left: auto;
+}
+
+/* ─── Test Cases Panel ───────────────────────────────────── */
+.test-cases-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.test-case-empty {
+  color: var(--text-3);
+  font-style: italic;
+  font-size: 12.5px;
+  padding: 12px 0;
+}
+
+.test-case-card {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.test-case-card.passed {
+  border-color: var(--green);
+}
+
+.test-case-card.failed {
+  border-color: var(--red);
+}
+
+.test-case-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.test-case-header.passed {
+  color: var(--green);
+}
+
+.test-case-header.failed {
+  color: var(--red);
+}
+
+.test-case-body {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.test-case-body label {
+  color: var(--text-3);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.test-case-body pre {
+  margin: 0;
+  color: var(--text-1);
+  background: var(--bg-editor);
+  padding: 5px 10px;
+  border-radius: 5px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.test-case-body pre.expected {
+  color: var(--green);
+}
+
+.test-case-body pre.actual-match {
+  color: var(--green);
+}
+
+.test-case-body pre.actual-fail {
+  color: var(--red);
+}
+
+/* Submit button */
+.submit-btn {
+  background: linear-gradient(135deg, #16a34a, #15803d) !important;
+  animation: submitPulse 0.4s ease-out;
+}
+
+@keyframes submitPulse {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ─── Practice Timer Badge ───────────────────────────────── */
+.practice-timer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(124, 58, 237, 0.1);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 8px;
+  padding: 5px 14px;
+  font-size: 13px;
+  color: var(--text-1);
+}
+
+.practice-timer span:last-child {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1px;
+}

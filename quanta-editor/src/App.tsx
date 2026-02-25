@@ -129,6 +129,14 @@ export default function App() {
     const [isFetchingProblem, setIsFetchingProblem] = useState<boolean>(false);
     const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
 
+    // Practice Mode: New Features State
+    const [practiceStartTime, setPracticeStartTime] = useState<number | null>(null);
+    const [practiceElapsedTime, setPracticeElapsedTime] = useState<number>(0);
+    const [activeBottomTab, setActiveBottomTab] = useState<'terminal' | 'testcases'>('terminal');
+    const [testCaseResults, setTestCaseResults] = useState<any[]>([]);
+    const [hasPassedAll, setHasPassedAll] = useState<boolean>(false);
+    const [isVerifying, setIsVerifying] = useState<boolean>(false);
+
     // Popular LeetCode problems for autocomplete
     const POPULAR_PROBLEMS = [
         '1. Two Sum', '2. Add Two Numbers', '3. Longest Substring Without Repeating Characters',
@@ -382,6 +390,29 @@ export default function App() {
         }
     };
 
+
+
+    // ── AI Suggestion Debounce ────────────────────────────────────────────────
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            if (pendingSuggestionRef.current) {
+                // handleAiSuggest(); // Optional auto-trigger disabled for performance
+            }
+        }, 1500);
+        return () => clearTimeout(handler);
+    }, [code]);
+
+    // ── Practice Mode Timer ──────────────────────────────────────────────────
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (practiceProblem && practiceStartTime) {
+            interval = setInterval(() => {
+                setPracticeElapsedTime(Math.floor((Date.now() - practiceStartTime) / 1000));
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [practiceProblem, practiceStartTime]);
+
     // ── New File ───────────────────────────────────────────────────────────────
     const handleNewFile = () => {
         const path = 'untitled-' + Date.now();
@@ -628,6 +659,11 @@ export default function App() {
                 } else if (result.data) {
                     setPracticeProblem(result.data);
                     setOutput(`Loaded: ${result.data.title}`);
+                    // Start the practice timer
+                    setPracticeStartTime(Date.now());
+                    setPracticeElapsedTime(0);
+                    setTestCaseResults([]);
+                    setHasPassedAll(false);
                     // Pre-fill editor with a starter function using correct Quanta return type
                     const fnName = result.data.titleSlug.replace(/-([a-z])/g, (_: string, g: string) => g.toUpperCase());
                     const returnType = getLeetcodeReturnType(result.data);
@@ -763,10 +799,20 @@ export default function App() {
                             {practiceProblem ? (
                                 <div className="practice-problem-content">
                                     <div className="practice-header">
-                                        <h2>{practiceProblem.title}</h2>
-                                        <span className={`diff-badge diff-${practiceProblem.difficulty?.toLowerCase()}`}>
-                                            {practiceProblem.difficulty}
-                                        </span>
+                                        <div>
+                                            <h2>{practiceProblem.title}</h2>
+                                            <span className={`diff-badge diff-${practiceProblem.difficulty?.toLowerCase()}`}>
+                                                {practiceProblem.difficulty}
+                                            </span>
+                                        </div>
+                                        {practiceStartTime && (
+                                            <div className="practice-timer" title="Practice Time Elapsed">
+                                                <span style={{ color: 'var(--green)' }}>✓ Active</span>
+                                                <span style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
+                                                    {Math.floor(practiceElapsedTime / 60).toString().padStart(2, '0')}:{(practiceElapsedTime % 60).toString().padStart(2, '0')}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                     <div
                                         className="practice-html"
@@ -842,10 +888,23 @@ export default function App() {
                                 inlineSuggest: { enabled: true },
                                 snippetSuggestions: 'top',
                             }}
-                            onMount={(editor) => {
+                            onMount={(editor, monaco) => {
                                 editorRef.current = editor;
-                                // enable inline suggestions so ghost text works
                                 editor.updateOptions({ inlineSuggest: { enabled: true } });
+                                // Register inline completion provider so Tab accepts AI suggestions
+                                monaco.languages.registerInlineCompletionsProvider('quanta', {
+                                    provideInlineCompletions: async () => {
+                                        if (!pendingSuggestionRef.current) return { items: [] };
+                                        const text = pendingSuggestionRef.current;
+                                        return {
+                                            items: [{
+                                                insertText: text,
+                                                range: editor.getSelection() ?? undefined,
+                                            }]
+                                        };
+                                    },
+                                    freeInlineCompletions: () => { },
+                                });
                             }}
                         />
                     </div>
@@ -871,22 +930,57 @@ export default function App() {
                     {/* Terminal */}
                     <div className="terminal-panel" style={{ height: terminalHeight, minHeight: terminalHeight }}>
                         <div className="terminal-header">
-                            <div className="terminal-title">
-                                <span className={`term-dot${isCompiling ? ' compiling' : ''}`} />
-                                OUTPUT
+                            <div className="terminal-tabs">
+                                <button
+                                    className={`term-tab ${activeBottomTab === 'terminal' ? 'active' : ''}`}
+                                    onClick={() => setActiveBottomTab('terminal')}
+                                >
+                                    <span className={`term-dot${isCompiling ? ' compiling' : ''}`} />
+                                    TERMINAL
+                                </button>
+                                {isPracticeMode && practiceProblem && (
+                                    <button
+                                        className={`term-tab ${activeBottomTab === 'testcases' ? 'active' : ''}`}
+                                        onClick={() => setActiveBottomTab('testcases')}
+                                    >
+                                        TEST CASES
+                                    </button>
+                                )}
                             </div>
-                            <button className="terminal-clear" onClick={() => setOutput('')}>✕ Clear</button>
+                            <div className="terminal-actions">
+                                {isPracticeMode && practiceProblem && (
+                                    <>
+                                        <button className="btn btn-ghost" onClick={() => { }} disabled={isCompiling || isVerifying} style={{ color: 'var(--blue)' }}>
+                                            ▶ Run Test Cases
+                                        </button>
+                                        {hasPassedAll && (
+                                            <button className="btn btn-run submit-btn" onClick={() => { }}>
+                                                Submit
+                                            </button>
+                                        )}
+                                    </>
+                                )}
+                                <button className="terminal-clear" onClick={() => setOutput('')}>✕ Clear</button>
+                            </div>
                         </div>
                         <div className="terminal-body">
-                            {output ? (
-                                <>
-                                    <span className="term-prompt">$ quanta </span>
-                                    <span className="term-fname">{fileName}</span>
-                                    {'\n\n'}
-                                    <span className={isError ? 'term-error' : 'term-out'}>{output}</span>
-                                </>
+                            {activeBottomTab === 'terminal' ? (
+                                output ? (
+                                    <>
+                                        <span className="term-prompt">$ quanta </span>
+                                        <span className="term-fname">{fileName}</span>
+                                        {'\n\n'}
+                                        <span className={isError ? 'term-error' : 'term-out'}>{output}</span>
+                                    </>
+                                ) : (
+                                    <span className="term-empty">Press ▶ Run Code to execute your program…</span>
+                                )
                             ) : (
-                                <span className="term-empty">Press ▶ Run Code to execute your program…</span>
+                                <div className="test-cases-panel">
+                                    <div className="test-case-empty">
+                                        Press "Run Test Cases" to verify your code against LeetCode examples.
+                                    </div>
+                                </div>
                             )}
                         </div>
                     </div>
