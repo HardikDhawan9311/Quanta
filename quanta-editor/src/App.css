@@ -679,13 +679,25 @@ body,
 
 .terminal-body {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   padding: 10px 16px;
   overflow-y: auto;
   font-family: var(--font-mono);
   font-size: 12.5px;
   line-height: 1.75;
-  white-space: pre-wrap;
   word-break: break-word;
+  min-height: 0;
+}
+
+/* Terminal text needs pre-wrap, test cases panel needs normal */
+.terminal-body>span,
+.terminal-body>.term-prompt,
+.terminal-body>.term-fname,
+.terminal-body>.term-out,
+.terminal-body>.term-error,
+.terminal-body>.term-empty {
+  white-space: pre-wrap;
 }
 
 .term-prompt {
@@ -1111,7 +1123,8 @@ body,
   gap: 10px;
   padding: 12px 16px;
   overflow-y: auto;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .test-case-empty {

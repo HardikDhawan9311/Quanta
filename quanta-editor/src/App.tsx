@@ -711,14 +711,25 @@ export default function App() {
                     setPracticeElapsedTime(0);
 
                     // Pre-populate Test Cases tab with pending cases
+                    // Parse expected outputs from HTML content
                     const rawTests = result.data.exampleTestcases ? result.data.exampleTestcases.split('\n') : [];
+                    const outputMatches = [...(result.data.content?.matchAll(/Output:?<\/strong>\s*([^<]+)/gi) ?? []
+                    ), (result.data.content?.matchAll(/Output:\s*([^\n<]+)/gi) ?? [])
+                    ].flat();
+                    const getExpected = (idx: number) => {
+                        if (outputMatches[idx]) {
+                            return String(outputMatches[idx][1] || '').trim();
+                        }
+                        return '?';
+                    };
                     const initialTests = [
-                        { id: 1, input: rawTests[0] || 'nums = [2,7,11,15], target = 9', expected: '[0,1]', status: 'unrun', actual: '' },
-                        { id: 2, input: rawTests[1] || 'nums = [3,2,4], target = 6', expected: '[1,2]', status: 'unrun', actual: '' },
-                        { id: 3, input: rawTests[2] || 'nums = [3,3], target = 6', expected: '[0,1]', status: 'unrun', actual: '' },
+                        { id: 1, input: rawTests[0] || 'See problem description', expected: getExpected(0), status: 'unrun', actual: '' },
+                        { id: 2, input: rawTests[1] || 'See problem description', expected: getExpected(1), status: 'unrun', actual: '' },
+                        { id: 3, input: rawTests[2] || 'See problem description', expected: getExpected(2), status: 'unrun', actual: '' },
                     ];
                     setTestCaseResults(initialTests);
                     setHasPassedAll(false);
+                    setTerminalHeight(280);
 
                     // Pre-fill editor with a starter function using correct Quanta return type
                     const fnName = result.data.titleSlug.replace(/-([a-z])/g, (_: string, g: string) => g.toUpperCase());
