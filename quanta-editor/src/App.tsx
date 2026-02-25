@@ -533,15 +533,14 @@ export default function App() {
         setIsVerifying(true);
         setHasPassedAll(false);
 
-        // Use realistic mock data derived from the LeetCode data for the UI
-        const rawTests = practiceProblem.exampleTestcases ? practiceProblem.exampleTestcases.split('\n') : [];
-        const mockTests = [
-            { id: 1, input: rawTests[0] || 'nums = [2,7,11,15], target = 9', expected: '[0,1]', status: 'pending', actual: '' },
-            { id: 2, input: rawTests[1] || 'nums = [3,2,4], target = 6', expected: '[1,2]', status: 'pending', actual: '' },
-            { id: 3, input: rawTests[2] || 'nums = [3,3], target = 6', expected: '[0,1]', status: 'pending', actual: '' },
+        // Grab existing pending cases or recreate if empty
+        const mockTests = testCaseResults.length > 0 ? testCaseResults : [
+            { id: 1, input: 'nums = [2,7,11,15], target = 9', expected: '[0,1]', status: 'pending', actual: '' },
+            { id: 2, input: 'nums = [3,2,4], target = 6', expected: '[1,2]', status: 'pending', actual: '' },
+            { id: 3, input: 'nums = [3,3], target = 6', expected: '[0,1]', status: 'pending', actual: '' },
         ];
-        // Set initial pending state
-        setTestCaseResults(mockTests);
+        // Set to pending state initially
+        setTestCaseResults(mockTests.map(tc => ({ ...tc, status: 'pending', actual: '' })));
 
         let targetFile = currentFile;
         if (!targetFile) {
@@ -710,8 +709,17 @@ export default function App() {
                     // Start the practice timer
                     setPracticeStartTime(Date.now());
                     setPracticeElapsedTime(0);
-                    setTestCaseResults([]);
+
+                    // Pre-populate Test Cases tab with pending cases
+                    const rawTests = result.data.exampleTestcases ? result.data.exampleTestcases.split('\n') : [];
+                    const initialTests = [
+                        { id: 1, input: rawTests[0] || 'nums = [2,7,11,15], target = 9', expected: '[0,1]', status: 'pending', actual: '' },
+                        { id: 2, input: rawTests[1] || 'nums = [3,2,4], target = 6', expected: '[1,2]', status: 'pending', actual: '' },
+                        { id: 3, input: rawTests[2] || 'nums = [3,3], target = 6', expected: '[0,1]', status: 'pending', actual: '' },
+                    ];
+                    setTestCaseResults(initialTests);
                     setHasPassedAll(false);
+
                     // Pre-fill editor with a starter function using correct Quanta return type
                     const fnName = result.data.titleSlug.replace(/-([a-z])/g, (_: string, g: string) => g.toUpperCase());
                     const returnType = getLeetcodeReturnType(result.data);
