@@ -713,9 +713,9 @@ export default function App() {
                     // Pre-populate Test Cases tab with pending cases
                     const rawTests = result.data.exampleTestcases ? result.data.exampleTestcases.split('\n') : [];
                     const initialTests = [
-                        { id: 1, input: rawTests[0] || 'nums = [2,7,11,15], target = 9', expected: '[0,1]', status: 'pending', actual: '' },
-                        { id: 2, input: rawTests[1] || 'nums = [3,2,4], target = 6', expected: '[1,2]', status: 'pending', actual: '' },
-                        { id: 3, input: rawTests[2] || 'nums = [3,3], target = 6', expected: '[0,1]', status: 'pending', actual: '' },
+                        { id: 1, input: rawTests[0] || 'nums = [2,7,11,15], target = 9', expected: '[0,1]', status: 'unrun', actual: '' },
+                        { id: 2, input: rawTests[1] || 'nums = [3,2,4], target = 6', expected: '[1,2]', status: 'unrun', actual: '' },
+                        { id: 3, input: rawTests[2] || 'nums = [3,3], target = 6', expected: '[0,1]', status: 'unrun', actual: '' },
                     ];
                     setTestCaseResults(initialTests);
                     setHasPassedAll(false);
@@ -1041,14 +1041,14 @@ export default function App() {
                                         testCaseResults.map(tc => (
                                             <div key={tc.id} className={`test-case-card ${tc.status}`}>
                                                 <div className={`test-case-header ${tc.status}`}>
-                                                    Case {tc.id}: {tc.status === 'pending' ? '⏳ Running...' : tc.status === 'passed' ? '✓ Accepted' : '✕ Wrong Answer'}
+                                                    Case {tc.id}: {tc.status === 'unrun' ? 'Ready' : tc.status === 'pending' ? '⏳ Running...' : tc.status === 'passed' ? '✓ Accepted' : '✕ Wrong Answer'}
                                                 </div>
                                                 <div className="test-case-body">
                                                     <label>Input</label>
                                                     <pre>{tc.input}</pre>
                                                     <label>Expected Output</label>
                                                     <pre className="expected">{tc.expected}</pre>
-                                                    {tc.status !== 'pending' && (
+                                                    {tc.status !== 'pending' && tc.status !== 'unrun' && (
                                                         <>
                                                             <label>Actual Output</label>
                                                             <pre className={tc.status === 'passed' ? 'actual-match' : 'actual-fail'}>{tc.actual}</pre>

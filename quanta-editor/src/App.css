@@ -1137,6 +1137,11 @@ body,
   border-color: var(--red);
 }
 
+.test-case-card.unrun {
+  border-color: var(--border);
+  opacity: 0.85;
+}
+
 .test-case-header {
   display: flex;
   align-items: center;
@@ -1147,6 +1152,10 @@ body,
   letter-spacing: 0.5px;
   text-transform: uppercase;
   background: rgba(255, 255, 255, 0.04);
+}
+
+.test-case-header.unrun {
+  color: var(--text-3);
 }
 
 .test-case-header.passed {
