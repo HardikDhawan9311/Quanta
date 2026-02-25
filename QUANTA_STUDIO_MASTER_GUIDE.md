@@ -2,6 +2,9 @@
 
 This is the exhaustive, step-by-step documentation of how **Quanta Studio** was built—from the very first `npm init` to a premium, cross-platform IDE deployment.
 
+> [!TIP]
+> **New to Node.js?** Check out the [Quanta Studio Deep Dive](file:///Users/rohan/Desktop/Quanta/QUANTA_STUDIO_DEEP_DIVE.md) for a beginner-friendly explanation of the whole tech stack.
+
 ---
 
 ## 📋 Table of Contents
